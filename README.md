@@ -110,3 +110,4 @@ uv run discord_cli.py get-messages-cmd --channel-id 987654321098765432 --limit 5
 https://discord.com/oauth2/authorize?client_id=1353467311880929300
 https://discord.com/oauth2/authorize?client_id=1353467311880929300
 https://discord.com/developers/applications/1353467311880929300/installation
+https://discord.com/developers/applications/1353467311880929300/installation

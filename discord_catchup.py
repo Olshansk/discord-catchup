@@ -3,15 +3,18 @@ import asyncio
 import click
 import discord
 from discord.ext import commands
-from dotenv import load_dotenv
+from pydantic_settings import BaseSettings
 
-# Load environment variables from .env file
-load_dotenv()
 
-# Get Discord token from environment variable
-DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
-if not DISCORD_TOKEN:
-    raise ValueError("No Discord token found. Please set the DISCORD_TOKEN environment variable.")
+class Settings(BaseSettings):
+    discord_token: str
+
+    class Config:
+        env_file = ".env"
+
+
+# Load settings from environment variables or .env file
+settings = Settings()
 
 # Create Discord client with necessary intents
 intents = discord.Intents.default()
@@ -69,9 +72,6 @@ def list_channels(guild_id):
     """List all channels in a Discord server."""
 
     async def run():
-        print("before")
-        # await client.wait_until_ready()
-        print("after")
         channels = await get_channels(int(guild_id))
 
         click.echo("Channels in the server:")
@@ -85,8 +85,6 @@ def list_channels(guild_id):
             else:
                 click.echo(f"Other Channel - {channel.name} (ID: {channel.id})")
 
-        await client.close()
-
     loop = asyncio.get_event_loop()
     loop.run_until_complete(run())
 
@@ -98,7 +96,6 @@ def list_threads(guild_id, channel_id):
     """List all threads in a Discord server, optionally filtered by channel."""
 
     async def run():
-        await client.wait_until_ready()
         threads = await get_threads(int(guild_id), int(channel_id) if channel_id else None)
 
         click.echo("Threads in the server:")
@@ -106,8 +103,6 @@ def list_threads(guild_id, channel_id):
             click.echo(
                 f"Thread - {thread.name} (ID: {thread.id}, Parent: {thread.parent.name if thread.parent else 'None'})"
             )
-
-        await client.close()
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(run())
@@ -120,16 +115,12 @@ def get_messages_cmd(channel_id, limit):
     """Retrieve the last N messages from a channel or thread."""
 
     async def run():
-        print("here")
-        await client.wait_until_ready()
         messages = await get_messages(int(channel_id), limit)
 
         click.echo(f"Last {limit} messages from channel/thread {channel_id}:")
         for message in messages:
             timestamp = message.created_at.strftime("%Y-%m-%d %H:%M:%S")
             click.echo(f"[{timestamp}] {message.author.name}: {message.content}")
-
-        await client.close()
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(run())
@@ -147,7 +138,7 @@ def main():
     # Use asyncio to run the bot login in the background
     async def start_client():
         print("Starting Discord client...")
-        await client.login(DISCORD_TOKEN)
+        await client.login(settings.discord_token)
         print("Logged in successfully.")
 
     print("Starting Discord Event Loop...")

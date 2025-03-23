@@ -11,6 +11,10 @@ help:  ## Prints all the targets in all the Makefiles
 list:  ## List all make targets
 	@${MAKE} -pRrn : -f $(MAKEFILE_LIST) 2>/dev/null | awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' | egrep -v -e '^[^[:alnum:]]' -e '^$@$$' | sort
 
+
+# https://docs.astral.sh/uv/reference/cli/#uv-init
+
+
 ##########################
 ### Env Common Targets ###
 ##########################
@@ -33,11 +37,10 @@ env_source:  ## Source the env; must be execute like so: $(make env_source)
 ### UV Common Targets ###
 ##########################
 
-UV_CACHE_DIR := .cache/uv
-
 .PHONY: uv_cache_dir
-uv_cache_dir: ## Create UV cache directory
-	@mkdir -p $(UV_CACHE_DIR)
+## Internal helper: Create the cache directory for uv
+uv_cache_dir:
+	@mkdir -p .cache/uv
 
 .PHONY: uv_compile
 uv_compile: check-env uv_cache_dir ## Generate requirements.txt from requirements.in with uv
@@ -91,3 +94,9 @@ claudesync_push: claudesync_check ## Pushes the current project to the ClaudeSyn
 ####################
 ### Your stuff   ###
 ####################
+
+.PHONY: run_groves_discord
+run_groves_discord: ## Runs the script for Grove's Discord server
+	@uv run discord_catchup.py list-channels --guild-id 824324475256438814
+
+.PHONY: run_groves_discord
