@@ -73,3 +73,6 @@ __pycache__/
 .python-version
 uv.lock
 pyproject.toml
+
+# Discord util
+prompt_*.md

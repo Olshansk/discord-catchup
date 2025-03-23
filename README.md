@@ -11,7 +11,7 @@ A command-line utility for interacting with Discord servers to easily retrieve i
 
 ## Installation
 
-1. **Important**: Save the script as `discord_catchup.py` to avoid naming conflicts with the discord.py library.
+1. **Important**: Save the script as `cli.py` to avoid naming conflicts with the discord.py library.
 
 2. Create a virtual environment and install dependencies:
 
@@ -56,7 +56,7 @@ make discord_list_channels_grove
 make discord_list_channels_grove_interactive
 
 # Or run directly with uv
-uv run discord_catchup.py [COMMAND] [OPTIONS]
+uv run cli.py [COMMAND] [OPTIONS]
 ```
 
 ### Available Commands
@@ -64,7 +64,7 @@ uv run discord_catchup.py [COMMAND] [OPTIONS]
 See the help output for the full list of available commands:
 
 ```bash
-uv run discord_catchup.py --help
+uv run cli.py --help
 ```
 
 ## Finding Guild and Channel IDs

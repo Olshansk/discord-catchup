@@ -1,47 +1,15 @@
-import os
-import asyncio
-import logging
 from typing import Dict, List, Optional, Tuple
 
 import click
 import discord
 from InquirerPy import inquirer
-from pydantic_settings import BaseSettings
+import logging
 
-
-class Settings(BaseSettings):
-    discord_token: str
-    debug_logging: bool = False
-
-    class Config:
-        env_file = ".env"
-
-
-# Load settings
-settings = Settings()
-
-# Set up logging
-logging_level = logging.DEBUG if settings.debug_logging else logging.WARNING
-logging.basicConfig(
-    level=logging_level, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger("discord_catchup")
-
-# Set up Discord client
-intents = discord.Intents.default()
-intents.message_content = True
-intents.guilds = True
-intents.guild_messages = True
-client = discord.Client(intents=intents)
-
-
-@click.group()
-def cli():
-    """Discord CLI tool for retrieving channel information and messages."""
-    pass
+logger = logging.getLogger("cli.cli_discord_utils")
 
 
 async def fetch_guild_channels(
+    client: discord.Client,
     guild_id: str,
 ) -> Tuple[discord.Guild, List[discord.abc.GuildChannel]]:
     """Fetch a guild and its channels.
@@ -103,8 +71,7 @@ async def select_category(categories: Dict, uncategorized: List) -> Tuple[str, L
     """
     # Create category choices
     category_choices = [
-        f"{cat_data['name']} ({len(cat_data['channels'])} channels)"
-        for cat_id, cat_data in categories.items()
+        f"{cat_data['name']} ({len(cat_data['channels'])} channels)" for cat_id, cat_data in categories.items()
     ]
 
     if uncategorized:
@@ -155,9 +122,7 @@ async def select_channel(
     channel_choices = [f"# {channel.name}" for channel in channel_list]
 
     # Map display strings back to channel objects
-    channel_map = {
-        channel_choices[i]: channel for i, channel in enumerate(channel_list)
-    }
+    channel_map = {channel_choices[i]: channel for i, channel in enumerate(channel_list)}
 
     # Use fuzzy search for channel selection
     selected_channel_display = await inquirer.fuzzy(
@@ -202,116 +167,54 @@ async def fetch_and_display_messages(channel: discord.TextChannel, limit: int) -
         click.echo(f"[{timestamp}] {message.author.name}: {message.content}")
 
 
-@cli.command()
-@click.option("--guild-id", required=True, help="Discord server (guild) ID")
-def thread_catchup(guild_id):
-    """Interactive tool to catch up on Discord threads."""
+async def fetch_threads(channel: discord.TextChannel) -> List[discord.Thread]:
+    """Fetch all threads in a channel.
 
-    async def run():
-        # Fetch guild and channels
-        guild, channels = await fetch_guild_channels(guild_id)
+    Args:
+        channel: Channel to fetch threads from
 
-        # Organize channels by category
-        categories, uncategorized = organize_channels_by_category(channels)
+    Returns:
+        List of thread objects
+    """
+    logger.debug(f"Fetching threads for channel {channel.id}...")
+    threads = []
 
-        # Select category
-        selected_category_name, channel_list = await select_category(
-            categories, uncategorized
-        )
+    # Get active threads
+    active_threads = await channel.guild.active_threads()
+    for thread in active_threads:
+        if thread.parent_id == channel.id:
+            threads.append(thread)
 
-        if not channel_list:
-            click.echo("No channels found in this category.")
-            return
+    # Get archived public threads
+    async for thread in channel.archived_threads(limit=100):
+        threads.append(thread)
 
-        # Select channel
-        selected_channel = await select_channel(channel_list)
-
-        if not selected_channel:
-            return
-
-        # Get message limit
-        limit = await get_message_limit()
-
-        # Fetch and display messages
-        await fetch_and_display_messages(selected_channel, limit)
-
-    # Use existing event loop instead of creating a new one
-    asyncio.get_event_loop().run_until_complete(run())
+    return threads
 
 
-@cli.command()
-@click.option("--guild-id", required=True, help="Discord server (guild) ID")
-@click.option(
-    "--interactive", is_flag=True, help="Use interactive mode to select channels"
-)
-def list_channels(guild_id, interactive):
-    """List all channels in a Discord server."""
+async def select_thread(threads: List[discord.Thread]) -> Optional[discord.Thread]:
+    """Display interactive prompt to select a thread.
 
-    async def run():
-        guild, channels = await fetch_guild_channels(guild_id)
+    Args:
+        threads: List of thread objects
 
-        if interactive:
-            categories, uncategorized = organize_channels_by_category(channels)
-            selected_category_name, channel_list = await select_category(
-                categories, uncategorized
-            )
+    Returns:
+        Selected thread object or None if no thread selected
+    """
+    if not threads:
+        return None
 
-            if not channel_list:
-                click.echo("No channels found in this category.")
-                return
+    # Add option for main channel (no thread)
+    thread_choices = ["No thread (main channel)"] + [f"🧵 {thread.name}" for thread in threads]
 
-            click.echo(f"\nChannels in {selected_category_name}:")
-            for channel in sorted(channel_list, key=lambda c: c.name):
-                click.echo(f"# {channel.name} (ID: {channel.id})")
-        else:
-            text_channels = [c for c in channels if isinstance(c, discord.TextChannel)]
-            click.echo(f"\nAll text channels in {guild.name}:")
-            for channel in sorted(text_channels, key=lambda c: c.name):
-                category_name = (
-                    channel.category.name if channel.category else "Uncategorized"
-                )
-                click.echo(
-                    f"# {channel.name} (ID: {channel.id}, Category: {category_name})"
-                )
+    # Map display strings back to thread objects with None for main channel
+    thread_map = {thread_choices[0]: None}
+    for i, thread in enumerate(threads):
+        thread_map[thread_choices[i + 1]] = thread
 
-    asyncio.get_event_loop().run_until_complete(run())
+    # Use fuzzy search for thread selection
+    selected_thread_display = await inquirer.fuzzy(
+        message="Select a thread:", choices=thread_choices, max_height="70%"
+    ).execute_async()
 
-
-@client.event
-async def on_ready():
-    """Event triggered when the bot is ready."""
-    logger.info(f"Logged in as {client.user.name}")
-
-
-async def start_client():
-    """Start the Discord client."""
-    logger.debug("Starting Discord client...")
-    await client.login(settings.discord_token)
-    logger.debug("Logged in successfully.")
-
-
-async def close_client():
-    """Close the Discord client."""
-    logger.debug("Closing Discord client...")
-    await client.close()
-    logger.debug("Discord client closed successfully.")
-
-
-def main():
-    """Start the Discord client and CLI."""
-    logger.debug("Starting Discord Event Loop...")
-    loop = asyncio.get_event_loop()
-    logger.debug("Running Discord client...")
-    loop.run_until_complete(start_client())
-
-    try:
-        # Run the CLI commands
-        cli()
-    finally:
-        # Ensure we close the client session
-        loop.run_until_complete(close_client())
-        loop.close()
-
-
-if __name__ == "__main__":
-    main()
+    return thread_map[selected_thread_display]

@@ -17,11 +17,11 @@ list:  ## List all make targets
 
 .PHONY: discord_help
 discord_help: env_check ## Show help information for Discord CLI commands
-	@uv run discord_catchup.py --help
+	@uv run cli.py --help
 
-.PHONY: discord_thread_catchup_grove
-discord_thread_catchup_grove: env_check ## Run the thread catchup interactive tool
-	@uv run discord_catchup.py thread-catchup --guild-id 824324475256438814
+.PHONY: discord_thread_catchup_grove_with_prompt
+discord_thread_catchup_grove_with_prompt: env_check ## Run the thread catchup with prompt file creation
+	@uv run cli.py thread-catchup --guild-id 824324475256438814 --create-prompt
 
 ##########################
 ### Env Common Targets ###
