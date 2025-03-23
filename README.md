@@ -1,6 +1,17 @@
-# Discord CLI Tool
+# Discord CLI Tool <!-- omit in toc -->
 
 A command-line utility for interacting with Discord servers to easily retrieve information about channels, threads, and messages.
+
+- [Features](#features)
+- [Installation](#installation)
+- [Getting a Discord Bot Token](#getting-a-discord-bot-token)
+- [Usage](#usage)
+  - [Available Commands](#available-commands)
+- [Finding Guild and Channel IDs](#finding-guild-and-channel-ids)
+- [Troubleshooting](#troubleshooting)
+- [Development](#development)
+- [Discord Catchup Bot](#discord-catchup-bot)
+- [ClaudeSync Setup](#claudesync-setup)
 
 ## Features
 
@@ -105,6 +116,53 @@ The following URLs are for the Discord Catchup bot:
 - Bot authorization: https://discord.com/oauth2/authorize?client_id=1353467311880929300
 - Developer portal: https://discord.com/developers/applications/1353467311880929300/installation
 
-```
+## ClaudeSync Setup
 
-```
+This repo is setup to use [ClaudeSync](https://github.com/jahwag/ClaudeSync) to help answer questions about the repo.
+
+You can view `.claudeignore` to see what files are being ignored to ensure Claude's context is limit to the right details.
+
+1. **Install ClaudeSync** - Ensure you have python set up on your machine
+
+   ```shell
+   pip install claudesync
+   ```
+
+1. **Authenticate** - Follow the instructions in your terminal
+
+   ```shell
+   claudesync auth login
+   ```
+
+1. **Create a Project** - Follow the instructions in your terminal
+
+   ```shell
+   make claudesync_init
+   ```
+
+1. **Start Syncing** - Run this every time you want to sync your local changes with Claude
+
+   ```shell
+   make claudesync_push
+   ```
+
+1. **Set the following system prompt**
+
+   ```text
+   You're a staff software engineer with lots of experience in python.
+
+   You follow the most recent best practices.
+
+   You and I will be pair coding on a small python CLI project to catch up on discord channels & servers.
+
+   Leverage the project context to answer questions.
+
+   Don't provide long explanations unless I explicitly as for it.
+
+   Bias towards:
+   - Code solutions
+   - For major changes, show the whole file modified
+   - For small changes, either:
+      - Provide a `diff.diff` I'll apply via `git apply diff.diff`
+      - Show the modified function which I'll copy-paste myself
+   ```
