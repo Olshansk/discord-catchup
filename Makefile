@@ -19,8 +19,8 @@ list:  ## List all make targets
 ### Env Common Targets ###
 ##########################
 
-.PHONY: check-env
-check-env: ## Checks if the virtual environment is activated
+.PHONY: env_check
+env_check: ## Checks if the virtual environment is activated
 ifndef VIRTUAL_ENV
 	$(error 'Virtualenv is not activated, please activate the Python virtual environment by running "$$(make env_source)".')
 endif
@@ -43,17 +43,17 @@ uv_cache_dir:
 	@mkdir -p .cache/uv
 
 .PHONY: uv_compile
-uv_compile: check-env uv_cache_dir ## Generate requirements.txt from requirements.in with uv
+uv_compile: env_check uv_cache_dir ## Generate requirements.txt from requirements.in with uv
 	@echo "Compiling dependencies..."
 	uv pip compile pyproject.toml -o requirements.txt
 	uv pip compile --output-file=requirements.txt requirements.in
 
 .PHONY: uv_install
-uv_install: check-env uv_cache_dir ## Install the dependencies using uv
+uv_install: env_check uv_cache_dir ## Install the dependencies using uv
 	uv pip install -r requirements.txt
 
 .PHONY: uv_upgrade
-uv_upgrade: check-env uv_cache_dir ## Upgrade all installed packages using uv
+uv_upgrade: env_check uv_cache_dir ## Upgrade all installed packages using uv
 	uv pip install --upgrade -r requirements.txt
 
 #############################
@@ -61,7 +61,7 @@ uv_upgrade: check-env uv_cache_dir ## Upgrade all installed packages using uv
 #############################
 
 .PHONY: py_format
-py_format: check-env  ## Format the python code
+py_format: env_check  ## Format the python code
 	ruff format
 
 ######################
@@ -96,7 +96,9 @@ claudesync_push: claudesync_check ## Pushes the current project to the ClaudeSyn
 ####################
 
 .PHONY: run_groves_discord
-run_groves_discord: ## Runs the script for Grove's Discord server
+run_groves_discord: env_check ## Runs the script for Grove's Discord server
 	@uv run discord_catchup.py list-channels --guild-id 824324475256438814
 
-.PHONY: run_groves_discord
+.PHONY: uv_run_help
+uv_run_help: env_check ## Shows help information for the Discord catchup script
+	@python3 discord_catchup.py --help

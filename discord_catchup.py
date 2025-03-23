@@ -1,5 +1,6 @@
 import os
 import asyncio
+import logging
 import click
 import discord
 from discord.ext import commands
@@ -8,6 +9,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     discord_token: str
+    debug_logging: bool = False
 
     class Config:
         env_file = ".env"
@@ -15,6 +17,11 @@ class Settings(BaseSettings):
 
 # Load settings from environment variables or .env file
 settings = Settings()
+
+# Set up logging
+logging_level = logging.DEBUG if settings.debug_logging else logging.WARNING
+logging.basicConfig(level=logging_level, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logger = logging.getLogger("discord_catchup")
 
 # Create Discord client with necessary intents
 intents = discord.Intents.default()
@@ -129,7 +136,7 @@ def get_messages_cmd(channel_id, limit):
 @client.event
 async def on_ready():
     """Event triggered when the bot is ready."""
-    print(f"Logged in as {client.user.name}")
+    logger.info(f"Logged in as {client.user.name}")
 
 
 def main():
@@ -137,17 +144,27 @@ def main():
 
     # Use asyncio to run the bot login in the background
     async def start_client():
-        print("Starting Discord client...")
+        logger.debug("Starting Discord client...")
         await client.login(settings.discord_token)
-        print("Logged in successfully.")
+        logger.debug("Logged in successfully.")
 
-    print("Starting Discord Event Loop...")
+    async def close_client():
+        logger.debug("Closing Discord client...")
+        await client.close()
+        logger.debug("Discord client closed successfully.")
+
+    logger.debug("Starting Discord Event Loop...")
     loop = asyncio.get_event_loop()
-    print("Running Discord client...")
+    logger.debug("Running Discord client...")
     loop.run_until_complete(start_client())
 
-    # Run the CLI commands
-    cli()
+    try:
+        # Run the CLI commands
+        cli()
+    finally:
+        # Ensure we close the client session
+        loop.run_until_complete(close_client())
+        loop.close()
 
 
 if __name__ == "__main__":
