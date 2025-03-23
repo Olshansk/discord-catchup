@@ -45,16 +45,21 @@ uv_cache_dir:
 .PHONY: uv_compile
 uv_compile: env_check uv_cache_dir ## Generate requirements.txt from requirements.in with uv
 	@echo "Compiling dependencies..."
-	uv pip compile pyproject.toml -o requirements.txt
-	uv pip compile --output-file=requirements.txt requirements.in
+	uv compile pyproject.toml -o requirements.txt
+	uv compile --output-file=requirements.txt requirements.in
 
 .PHONY: uv_install
 uv_install: env_check uv_cache_dir ## Install the dependencies using uv
-	uv pip install -r requirements.txt
+	uv install -r requirements.txt
 
 .PHONY: uv_upgrade
 uv_upgrade: env_check uv_cache_dir ## Upgrade all installed packages using uv
-	uv pip install --upgrade -r requirements.txt
+	uv install --upgrade -r requirements.txt
+
+.PHONY: uv_export
+uv_export: env_check uv_cache_dir ## Export dependencies to requirements.txt
+	@echo "Exporting dependencies to requirements.txt..."
+	uv export -o requirements.txt
 
 #############################
 ### Python Common Targets ###
@@ -95,10 +100,14 @@ claudesync_push: claudesync_check ## Pushes the current project to the ClaudeSyn
 ### Your stuff   ###
 ####################
 
-.PHONY: run_groves_discord
-run_groves_discord: env_check ## Runs the script for Grove's Discord server
+.PHONY: discord_list_channels_grove
+discord_list_channels_grove: env_check ## Runs the script for Grove's Discord server
 	@uv run discord_catchup.py list-channels --guild-id 824324475256438814
 
-.PHONY: uv_run_help
-uv_run_help: env_check ## Shows help information for the Discord catchup script
+.PHONY: discord_list_channels_grove_interactive
+discord_list_channels_grove_interactive: env_check ## Runs the script for Grove's Discord server
+	@uv run discord_catchup.py list-channels --guild-id 824324475256438814 --interactive
+
+.PHONY: discord_help
+discord_help: env_check ## Shows help information for the Discord catchup script
 	@python3 discord_catchup.py --help
