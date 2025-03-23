@@ -33,7 +33,9 @@ async def fetch_and_create_prompt_file(channel: discord.TextChannel, limit: int)
     thread_name = "main"
     if isinstance(channel, discord.Thread):
         thread_name = channel.name
-        channel_name = channel.parent.name
+        parent_channel = channel.parent
+        if parent_channel:
+            channel_name = parent_channel.name
 
     # Create timestamp for filename
     timestamp = discord.utils.utcnow().strftime("%Y_%m_%d_%H%M%S")

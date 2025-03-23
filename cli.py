@@ -68,7 +68,7 @@ def thread_catchup(guild_id, create_prompt):
 
         # Fetch and display messages
         if create_prompt:
-            await cdu.cli_prompt_handler.fetch_and_create_prompt_file(selected_channel, limit)
+            await cph.fetch_and_create_prompt_file(selected_channel, limit)
         else:
             await cdu.fetch_and_display_messages(selected_channel, limit)
 
