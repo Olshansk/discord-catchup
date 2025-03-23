@@ -5,7 +5,9 @@ import logging
 logger = logging.getLogger("cli.cli_prompt_handler")
 
 
-async def fetch_and_create_prompt_file(channel: discord.TextChannel, limit: int) -> None:
+async def fetch_and_create_prompt_file(
+    channel: discord.TextChannel, limit: int
+) -> None:
     """Fetch messages and create a prompt file.
 
     Args:
@@ -41,7 +43,9 @@ async def fetch_and_create_prompt_file(channel: discord.TextChannel, limit: int)
     timestamp = discord.utils.utcnow().strftime("%Y_%m_%d_%H%M%S")
 
     # Create filename
-    filename = f"prompt_{timestamp}_{guild_name}_{channel_name}_{thread_name}_{limit}.md"
+    filename = (
+        f"prompt_{timestamp}_{guild_name}_{channel_name}_{thread_name}_{limit}.md"
+    )
     # Remove special characters from filename
     filename = "".join(c if c.isalnum() or c in "._- " else "_" for c in filename)
 
@@ -50,7 +54,9 @@ async def fetch_and_create_prompt_file(channel: discord.TextChannel, limit: int)
         with open("prompt.md", "r", encoding="utf-8") as f:
             prompt_content = f.read()
     except FileNotFoundError:
-        click.echo("Error: prompt.md not found. Please create this file with your prompt template.")
+        click.echo(
+            "Error: prompt.md not found. Please create this file with your prompt template."
+        )
         return
 
     # Add messages to the prompt content

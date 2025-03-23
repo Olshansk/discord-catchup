@@ -71,7 +71,8 @@ async def select_category(categories: Dict, uncategorized: List) -> Tuple[str, L
     """
     # Create category choices
     category_choices = [
-        f"{cat_data['name']} ({len(cat_data['channels'])} channels)" for cat_id, cat_data in categories.items()
+        f"{cat_data['name']} ({len(cat_data['channels'])} channels)"
+        for cat_id, cat_data in categories.items()
     ]
 
     if uncategorized:
@@ -122,7 +123,9 @@ async def select_channel(
     channel_choices = [f"# {channel.name}" for channel in channel_list]
 
     # Map display strings back to channel objects
-    channel_map = {channel_choices[i]: channel for i, channel in enumerate(channel_list)}
+    channel_map = {
+        channel_choices[i]: channel for i, channel in enumerate(channel_list)
+    }
 
     # Use fuzzy search for channel selection
     selected_channel_display = await inquirer.fuzzy(
@@ -205,7 +208,9 @@ async def select_thread(threads: List[discord.Thread]) -> Optional[discord.Threa
         return None
 
     # Add option for main channel (no thread)
-    thread_choices = ["No thread (main channel)"] + [f"🧵 {thread.name}" for thread in threads]
+    thread_choices = ["No thread (main channel)"] + [
+        f"🧵 {thread.name}" for thread in threads
+    ]
 
     # Map display strings back to thread objects with None for main channel
     thread_map = {thread_choices[0]: None}
