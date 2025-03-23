@@ -11,10 +11,6 @@ help:  ## Prints all the targets in all the Makefiles
 list:  ## List all make targets
 	@${MAKE} -pRrn : -f $(MAKEFILE_LIST) 2>/dev/null | awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' | egrep -v -e '^[^[:alnum:]]' -e '^$@$$' | sort
 
-
-# https://docs.astral.sh/uv/reference/cli/#uv-init
-
-
 ##########################
 ### Env Common Targets ###
 ##########################
@@ -26,11 +22,11 @@ ifndef VIRTUAL_ENV
 endif
 
 .PHONY: env_create
-env_create:  ## Create the env; must be execute like so: $(make env_create)
+env_create:  ## Create Python 3.11 virtual environment with uv
 	uv venv --python 3.11
 
 .PHONY: env_source
-env_source:  ## Source the env; must be execute like so: $(make env_source)
+env_source:  ## Source the env; must be executed like so: $$(make env_source)
 	@echo 'source .venv/bin/activate'
 
 ##########################
@@ -43,21 +39,22 @@ uv_cache_dir:
 	@mkdir -p .cache/uv
 
 .PHONY: uv_compile
-uv_compile: env_check uv_cache_dir ## Generate requirements.txt from requirements.in with uv
+uv_compile: env_check uv_cache_dir ## Generate requirements.txt from pyproject.toml and requirements.in
 	@echo "Compiling dependencies..."
 	uv compile pyproject.toml -o requirements.txt
 	uv compile --output-file=requirements.txt requirements.in
 
 .PHONY: uv_install
-uv_install: env_check uv_cache_dir ## Install the dependencies using uv
+uv_install: env_check uv_cache_dir ## Install dependencies from requirements.txt
 	uv install -r requirements.txt
 
 .PHONY: uv_upgrade
-uv_upgrade: env_check uv_cache_dir ## Upgrade all installed packages using uv
+uv_upgrade: env_check uv_cache_dir ## Upgrade all installed packages and update requirements.txt
 	uv install --upgrade -r requirements.txt
+	$(MAKE) uv_export
 
 .PHONY: uv_export
-uv_export: env_check uv_cache_dir ## Export dependencies to requirements.txt
+uv_export: env_check uv_cache_dir ## Export locked dependencies to requirements.txt
 	@echo "Exporting dependencies to requirements.txt..."
 	uv export -o requirements.txt
 
@@ -66,8 +63,28 @@ uv_export: env_check uv_cache_dir ## Export dependencies to requirements.txt
 #############################
 
 .PHONY: py_format
-py_format: env_check  ## Format the python code
+py_format: env_check  ## Format the Python code with ruff
 	ruff format
+
+########################
+### Discord Commands ###
+########################
+
+.PHONY: discord_list_channels_grove
+discord_list_channels_grove: env_check ## List channels in Grove's Discord server
+	@uv run discord_catchup.py list-channels --guild-id 824324475256438814
+
+.PHONY: discord_list_channels_grove_interactive
+discord_list_channels_grove_interactive: env_check ## Interactively browse Grove's Discord server
+	@uv run discord_catchup.py list-channels --guild-id 824324475256438814 --interactive
+
+.PHONY: discord_thread_catchup
+discord_thread_catchup: env_check ## Run the thread catchup interactive tool
+	@uv run discord_catchup.py thread-catchup --guild-id 824324475256438814
+
+.PHONY: discord_help
+discord_help: env_check ## Show help information for Discord CLI commands
+	@uv run discord_catchup.py --help
 
 ######################
 ### Claude targets ###
@@ -95,19 +112,3 @@ claudesync_init: claudesync_check ## Initializes a new ClaudeSync project
 .PHONY: claudesync_push
 claudesync_push: claudesync_check ## Pushes the current project to the ClaudeSync project
 	@claudesync push
-
-####################
-### Your stuff   ###
-####################
-
-.PHONY: discord_list_channels_grove
-discord_list_channels_grove: env_check ## Runs the script for Grove's Discord server
-	@uv run discord_catchup.py list-channels --guild-id 824324475256438814
-
-.PHONY: discord_list_channels_grove_interactive
-discord_list_channels_grove_interactive: env_check ## Runs the script for Grove's Discord server
-	@uv run discord_catchup.py list-channels --guild-id 824324475256438814 --interactive
-
-.PHONY: discord_help
-discord_help: env_check ## Shows help information for the Discord catchup script
-	@python3 discord_catchup.py --help
