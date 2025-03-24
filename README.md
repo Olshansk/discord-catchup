@@ -19,6 +19,8 @@ A command-line utility for interacting with Discord servers to easily retrieve i
   - [Code Quality](#code-quality)
 - [ClaudeSync Integration](#claudesync-integration)
 
+![Image](https://github.com/user-attachments/assets/a753f0a9-f7b7-4ad7-b599-be0003d9d1d3)
+
 ## Features
 
 - List all channels in a Discord server, with interactive navigation
