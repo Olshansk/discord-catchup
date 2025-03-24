@@ -63,7 +63,7 @@ uv_compile: env_check uv_cache_dir ## Generate requirements.txt from pyproject.t
 
 .PHONY: uv_install
 uv_install: env_check uv_cache_dir ## Install dependencies from requirements.txt
-	uv install -r requirements.txt
+	uv install --requirements requirements.txt
 
 .PHONY: uv_upgrade
 uv_upgrade: env_check uv_cache_dir ## Upgrade all installed packages and update requirements.txt
