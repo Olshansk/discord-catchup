@@ -27,6 +27,10 @@ discord_thread_catchup_with_prompt_grove: env_check ## Run the thread catchup wi
 discord_thread_catchup_with_prompt_use_env: env_check ## Run the thread catchup with prompt file creation for the guild specified in the environment
 	@uv run cli.py thread-catchup --create-prompt
 
+.PHONY: discord_thread_catchup_with_summary_use_env
+discord_thread_catchup_with_summary_use_env: env_check ## Run the thread catchup with prompt file creation for the guild specified in the environment
+	@uv run cli.py thread-catchup --summarize
+
 ##########################
 ### Env Common Targets ###
 ##########################

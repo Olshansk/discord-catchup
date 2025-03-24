@@ -41,13 +41,9 @@ async def fetch_and_create_prompt_file(channel: discord.TextChannel, limit: int)
     timestamp = discord.utils.utcnow().strftime("%Y_%m_%d_%H%M%S")
 
     # Create filename with snake_case
-    filename = (
-        f"prompt_{timestamp}_{guild_name}_{channel_name}_{thread_name}_{limit}.md"
-    )
+    filename = f"prompt_{timestamp}_{guild_name}_{channel_name}_{thread_name}_{limit}.md"
     # Convert to snake_case and remove special characters
-    filename = "".join(
-        c.lower() if c.isalnum() or c in "._- " else "_" for c in filename
-    )
+    filename = "".join(c.lower() if c.isalnum() or c in "._- " else "_" for c in filename)
     filename = filename.replace(" ", "_")
 
     # Read prompt template from prompt.md
@@ -55,9 +51,7 @@ async def fetch_and_create_prompt_file(channel: discord.TextChannel, limit: int)
         with open("prompt.md", "r", encoding="utf-8") as f:
             prompt_content = f.read()
     except FileNotFoundError:
-        click.echo(
-            "Error: prompt.md not found. Please create this file with your prompt template."
-        )
+        click.echo("Error: prompt.md not found. Please create this file with your prompt template.")
         return None
 
     # Add messages to the prompt content
@@ -68,7 +62,7 @@ async def fetch_and_create_prompt_file(channel: discord.TextChannel, limit: int)
     with open(filename, "w", encoding="utf-8") as f:
         f.write(prompt_content)
 
-    click.echo(f"\nCreated prompt file: {filename}")
-    click.echo(f"Last {limit} messages from {channel.name} saved.")
+    click.echo(f"\n✅   Created prompt file: {filename}")
+    click.echo(f"✅   Last {limit} messages from {channel.name} saved.")
 
     return filename

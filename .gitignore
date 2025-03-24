@@ -1,5 +1,6 @@
 __pycache__
 .env
 prompt_*.md
+summary_prompt_*.md
 .ruff_cache
 .cache/

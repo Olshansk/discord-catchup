@@ -10,11 +10,12 @@ logger = logging.getLogger("cli.cli_llm_handler")
 
 class LLMSettings(BaseSettings):
     openrouter_api_key: Optional[str] = None
-    # Allow for extra fields from the .env file
+    site_url: Optional[str] = None
+    site_name: Optional[str] = None
 
     class Config:
         env_file = ".env"
-        extra = "ignore"  # Ignore extra fields from .env
+        extra = "ignore"
 
 
 settings = LLMSettings()
@@ -73,13 +74,21 @@ async def call_openrouter_api(prompt_content: str) -> Optional[str]:
     """
     url = "https://openrouter.ai/api/v1/chat/completions"
 
+    # Build headers with proper referer information
     headers = {
         "Authorization": f"Bearer {settings.openrouter_api_key}",
         "Content-Type": "application/json",
     }
 
+    if settings.site_url:
+        headers["HTTP-Referer"] = settings.site_url
+
+    if settings.site_name:
+        headers["X-Title"] = settings.site_name
+
+    # Use the Qwen model as specified
     payload = {
-        "model": "anthropic/claude-3-haiku-20240307",
+        "model": "deepseek/deepseek-r1-distill-qwen-32b:free",
         "messages": [{"role": "user", "content": prompt_content}],
     }
 
@@ -87,14 +96,12 @@ async def call_openrouter_api(prompt_content: str) -> Optional[str]:
         async with aiohttp.ClientSession() as session:
             async with session.post(url, headers=headers, json=payload) as response:
                 if response.status != 200:
-                    logger.error(
-                        f"API request failed with status {response.status}: {await response.text()}"
-                    )
+                    logger.error(f"❌   API request failed with status {response.status}: {await response.text()}")
                     return None
 
                 data = await response.json()
                 return data.get("choices", [{}])[0].get("message", {}).get("content")
 
     except Exception as e:
-        logger.error(f"Error calling OpenRouter API: {e}")
+        logger.error(f"❌   Error calling OpenRouter API: {e}")
         return None

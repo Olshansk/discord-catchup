@@ -78,3 +78,4 @@ pyproject.toml
 
 # Discord util
 prompt_*.md
+summary_prompt_*.md
