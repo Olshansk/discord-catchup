@@ -26,7 +26,9 @@ settings = Settings()
 
 # Set up logging
 logging_level = logging.DEBUG if settings.debug_logging else logging.WARNING
-logging.basicConfig(level=logging_level, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging_level, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger("cli")
 
 # Set up Discord client
@@ -45,10 +47,14 @@ def cli():
 
 @cli.command()
 @click.option("--guild-id", required=False, help="Discord server (guild) ID")
-@click.option("--create-prompt", is_flag=True, help="Create a prompt file for summarization")
+@click.option(
+    "--create-prompt", is_flag=True, help="Create a prompt file for summarization"
+)
 @click.option("--summarize", is_flag=True, help="Use LLM to summarize the conversation")
 @click.option("--use-cache", is_flag=True, help="Use cached thread data if available")
-@click.option("--max-age", type=int, help="Only show threads updated within this many days")
+@click.option(
+    "--max-age", type=int, help="Only show threads updated within this many days"
+)
 def thread_catchup(guild_id, create_prompt, summarize, use_cache, max_age):
     """Interactive tool to catch up on Discord threads."""
     # Use default guild ID if not provided
@@ -59,7 +65,9 @@ def thread_catchup(guild_id, create_prompt, summarize, use_cache, max_age):
     max_age = max_age if max_age is not None else settings.max_thread_age_days
 
     if not guild_id:
-        click.echo("Error: Guild ID is required. Provide --guild-id or set DEFAULT_GUILD_ID in .env")
+        click.echo(
+            "Error: Guild ID is required. Provide --guild-id or set DEFAULT_GUILD_ID in .env"
+        )
         return
 
     # If summarize is requested but create-prompt is not, set create-prompt to True
@@ -74,20 +82,26 @@ def thread_catchup(guild_id, create_prompt, summarize, use_cache, max_age):
         categories, uncategorized = cdu.organize_channels_by_category(channels)
 
         # Select category
-        selected_category_name, channel_list = await cdu.select_category(categories, uncategorized)
+        selected_category_name, channel_list = await cdu.select_category(
+            categories, uncategorized
+        )
 
         if not channel_list:
             click.echo("No channels found in this category.")
             return
 
         # Select channel
-        selected_channel = await cdu.select_channel(channel_list, count_threads=(not use_cache))
+        selected_channel = await cdu.select_channel(
+            channel_list, count_threads=(not use_cache)
+        )
 
         if not selected_channel:
             return
 
         # Fetch threads for the selected channel
-        threads = await cdu.fetch_threads(selected_channel, use_cache=use_cache, max_age_days=max_age)
+        threads = await cdu.fetch_threads(
+            selected_channel, use_cache=use_cache, max_age_days=max_age
+        )
 
         # Select thread or main channel
         selected_thread = await cdu.select_thread(threads)
@@ -118,7 +132,9 @@ def thread_catchup(guild_id, create_prompt, summarize, use_cache, max_age):
 
 @cli.command()
 @click.option("--guild-id", required=True, help="Discord server (guild) ID")
-@click.option("--interactive", is_flag=True, help="Use interactive mode to select channels")
+@click.option(
+    "--interactive", is_flag=True, help="Use interactive mode to select channels"
+)
 def list_channels(guild_id, interactive):
     """List all channels in a Discord server."""
 
@@ -127,7 +143,9 @@ def list_channels(guild_id, interactive):
 
         if interactive:
             categories, uncategorized = cdu.organize_channels_by_category(channels)
-            selected_category_name, channel_list = await cdu.select_category(categories, uncategorized)
+            selected_category_name, channel_list = await cdu.select_category(
+                categories, uncategorized
+            )
 
             if not channel_list:
                 click.echo("No channels found in this category.")
@@ -140,8 +158,12 @@ def list_channels(guild_id, interactive):
             text_channels = [c for c in channels if isinstance(c, discord.TextChannel)]
             click.echo(f"\nAll text channels in {guild.name}:")
             for channel in sorted(text_channels, key=lambda c: c.name):
-                category_name = channel.category.name if channel.category else "Uncategorized"
-                click.echo(f"# {channel.name} (ID: {channel.id}, Category: {category_name})")
+                category_name = (
+                    channel.category.name if channel.category else "Uncategorized"
+                )
+                click.echo(
+                    f"# {channel.name} (ID: {channel.id}, Category: {category_name})"
+                )
 
     asyncio.get_event_loop().run_until_complete(run())
 

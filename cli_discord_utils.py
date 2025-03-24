@@ -75,7 +75,8 @@ async def select_category(categories: Dict, uncategorized: List) -> Tuple[str, L
     """
     # Create category choices
     category_choices = [
-        f"{cat_data['name']} ({len(cat_data['channels'])} channels)" for cat_id, cat_data in categories.items()
+        f"{cat_data['name']} ({len(cat_data['channels'])} channels)"
+        for cat_id, cat_data in categories.items()
     ]
 
     if uncategorized:
@@ -139,7 +140,9 @@ async def select_channel(
         channel_choices.append(f"# {channel.name} ({thread_count} threads)")
 
     # Map display strings back to channel objects
-    channel_map = {channel_choices[i]: channel for i, channel in enumerate(channel_list)}
+    channel_map = {
+        channel_choices[i]: channel for i, channel in enumerate(channel_list)
+    }
 
     # Use fuzzy search for channel selection
     selected_channel_display = await inquirer.fuzzy(
@@ -202,7 +205,11 @@ async def fetch_threads(
     try:
         active_threads = await channel.guild.active_threads()
         for thread in active_threads:
-            if thread.parent_id == channel.id and not thread.archived and not thread.locked:
+            if (
+                thread.parent_id == channel.id
+                and not thread.archived
+                and not thread.locked
+            ):
                 threads.append(thread)
     except Exception as e:
         logger.warning(f"Error fetching active threads: {e}")
@@ -222,7 +229,8 @@ async def fetch_threads(
             t
             for t in threads
             if t.archive_timestamp
-            and t.archive_timestamp.replace(tzinfo=None) >= cutoff_date - timedelta(days=max_age_days)
+            and t.archive_timestamp.replace(tzinfo=None)
+            >= cutoff_date - timedelta(days=max_age_days)
         ]
 
     # Save to cache if needed
@@ -232,11 +240,16 @@ async def fetch_threads(
     return threads
 
 
-def _load_threads_from_cache(channel_id: int, max_age_days: Optional[int] = None) -> List[discord.Thread]:
+def _load_threads_from_cache(
+    channel_id: int, max_age_days: Optional[int] = None
+) -> List[discord.Thread]:
     """Load threads from cache."""
     cache_file = os.path.join(".cache", f"threads_cache_{channel_id}.json")
 
-    if not os.path.exists(cache_file) or time.time() - os.path.getmtime(cache_file) > 3600:
+    if (
+        not os.path.exists(cache_file)
+        or time.time() - os.path.getmtime(cache_file) > 3600
+    ):
         return []
 
     try:
@@ -260,7 +273,9 @@ def _save_threads_to_cache(channel_id: int, threads: List[discord.Thread]) -> No
                 "name": t.name,
                 "archived": t.archived,
                 "locked": getattr(t, "locked", False),
-                "archive_timestamp": t.archive_timestamp.isoformat() if t.archive_timestamp else None,
+                "archive_timestamp": t.archive_timestamp.isoformat()
+                if t.archive_timestamp
+                else None,
             }
             for t in threads
         ]
@@ -285,7 +300,9 @@ async def select_thread(threads: List[discord.Thread]) -> Optional[discord.Threa
         return None
 
     # Add option for main channel (no thread)
-    thread_choices = ["No thread (main channel)"] + [f"🧵 {thread.name}" for thread in threads]
+    thread_choices = ["No thread (main channel)"] + [
+        f"🧵 {thread.name}" for thread in threads
+    ]
 
     # Map display strings back to thread objects with None for main channel
     thread_map = {thread_choices[0]: None}

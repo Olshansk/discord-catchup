@@ -96,7 +96,9 @@ async def call_openrouter_api(prompt_content: str) -> Optional[str]:
         async with aiohttp.ClientSession() as session:
             async with session.post(url, headers=headers, json=payload) as response:
                 if response.status != 200:
-                    logger.error(f"❌   API request failed with status {response.status}: {await response.text()}")
+                    logger.error(
+                        f"❌   API request failed with status {response.status}: {await response.text()}"
+                    )
                     return None
 
                 data = await response.json()
