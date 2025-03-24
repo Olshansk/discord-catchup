@@ -5,24 +5,37 @@ A command-line utility for interacting with Discord servers to easily retrieve i
 - [Features](#features)
 - [Installation](#installation)
 - [Getting a Discord Bot Token](#getting-a-discord-bot-token)
+- [Configuration](#configuration)
 - [Usage](#usage)
   - [Available Commands](#available-commands)
 - [Finding Guild and Channel IDs](#finding-guild-and-channel-ids)
+- [Thread Catchup \& Summarization](#thread-catchup--summarization)
 - [Troubleshooting](#troubleshooting)
 - [Development](#development)
-- [Discord Catchup Bot](#discord-catchup-bot)
-- [ClaudeSync Setup](#claudesync-setup)
+- [Makefile Commands](#makefile-commands)
+  - [Discord Commands](#discord-commands)
+  - [Environment Management](#environment-management)
+  - [Package Management](#package-management)
+  - [Code Quality](#code-quality)
+- [ClaudeSync Integration](#claudesync-integration)
 
 ## Features
 
-- List all channels in a Discord server
-- Navigate channels and threads interactively
+- List all channels in a Discord server, with interactive navigation
+- Browse and select channels and threads with fuzzy search
 - Retrieve the last N messages from any channel or thread
-- Easy-to-use command-line interface using Click
+- Create prompt files for AI summarization
+- Generate AI-powered summaries of Discord conversations using OpenRouter
+- Caching of thread data for improved performance
 
 ## Installation
 
-1. **Important**: Save the script as `cli.py` to avoid naming conflicts with the discord.py library.
+1. Clone the repository:
+
+   ```bash
+   git clone https://github.com/yourusername/discord-cli-tool.git
+   cd discord-cli-tool
+   ```
 
 2. Create a virtual environment and install dependencies:
 
@@ -37,10 +50,15 @@ A command-line utility for interacting with Discord servers to easily retrieve i
    make uv_install
    ```
 
-3. Create a `.env` file in the same directory as the script with your Discord bot token:
+3. Create a `.env` file with your configuration:
 
    ```bash
    DISCORD_TOKEN=your_discord_bot_token_here
+   DEFAULT_GUILD_ID=your_default_guild_id_here
+   DEBUG_LOGGING=false
+   USE_THREADS_CACHE=true
+   MAX_THREAD_AGE_DAYS=30
+   OPENROUTER_API_KEY=your_openrouter_api_key_here
    ```
 
 ## Getting a Discord Bot Token
@@ -54,6 +72,19 @@ A command-line utility for interacting with Discord servers to easily retrieve i
 7. Select bot permissions: `Read Messages/View Channels`, `Read Message History`, `Message Content Intent`
 8. Use the generated URL to invite the bot to your server
 
+## Configuration
+
+The tool can be configured via environment variables in a `.env` file:
+
+| Variable              | Description                                         | Default |
+| --------------------- | --------------------------------------------------- | ------- |
+| `DISCORD_TOKEN`       | Discord bot token (required)                        | -       |
+| `DEFAULT_GUILD_ID`    | Default Discord server ID                           | -       |
+| `DEBUG_LOGGING`       | Enable debug logging                                | `false` |
+| `USE_THREADS_CACHE`   | Enable thread caching                               | `false` |
+| `MAX_THREAD_AGE_DAYS` | Only show threads updated within this many days     | -       |
+| `OPENROUTER_API_KEY`  | API key for OpenRouter (required for summarization) | -       |
+
 ## Usage
 
 ```bash
@@ -61,13 +92,32 @@ A command-line utility for interacting with Discord servers to easily retrieve i
 make discord_help
 
 # List channels in a server
-make discord_list_channels_grove
+uv run cli.py list-channels --guild-id YOUR_GUILD_ID
 
-# List channels interactively
-make discord_list_channels_grove_interactive
+# Interactive channel listing
+uv run cli.py list-channels --guild-id YOUR_GUILD_ID --interactive
 
-# Or run directly with uv
-uv run cli.py [COMMAND] [OPTIONS]
+# Thread catchup with interactive UI
+uv run cli.py thread-catchup --guild-id YOUR_GUILD_ID
+
+# Create a prompt file for summarization
+uv run cli.py thread-catchup --guild-id YOUR_GUILD_ID --create-prompt
+
+# Generate an AI summary of a conversation
+uv run cli.py thread-catchup --guild-id YOUR_GUILD_ID --summarize
+```
+
+You can also use the convenience Makefile commands:
+
+```bash
+# Get help for all commands
+make discord_help
+
+# Thread catchup with prompt creation (using default guild)
+make discord_thread_catchup_with_prompt_use_env
+
+# Thread catchup with AI summarization (using default guild)
+make discord_thread_catchup_with_summary_use_env
 ```
 
 ### Available Commands
@@ -84,6 +134,19 @@ uv run cli.py --help
 2. Go to "Advanced" and enable "Developer Mode"
 3. Right-click on a server/guild and select "Copy ID" to get the Guild ID
 4. Right-click on a channel and select "Copy ID" to get the Channel ID
+
+## Thread Catchup & Summarization
+
+The `thread-catchup` command provides an interactive way to catch up on Discord conversations:
+
+1. Select a category
+2. Select a channel
+3. Select a thread (or main channel)
+4. Choose how many messages to retrieve
+5. View messages or create a prompt file for summarization
+6. Optionally generate an AI summary of the conversation
+
+For summarization to work, you need an OpenRouter API key in your `.env` file.
 
 ## Troubleshooting
 
@@ -109,18 +172,64 @@ make uv_upgrade
 make uv_export
 ```
 
-## Discord Catchup Bot
+## Makefile Commands
 
-The following URLs are for the Discord Catchup bot:
+The project includes several helpful Makefile commands for common operations:
 
-- Bot authorization: https://discord.com/oauth2/authorize?client_id=1353467311880929300
-- Developer portal: https://discord.com/developers/applications/1353467311880929300/installation
+### Discord Commands
 
-## ClaudeSync Setup
+```bash
+# Show CLI help
+make discord_help
 
-This repo is setup to use [ClaudeSync](https://github.com/jahwag/ClaudeSync) to help answer questions about the repo.
+# Catch up on threads with prompt creation (Grove guild)
+make discord_thread_catchup_with_prompt_grove
 
-You can view `.claudeignore` to see what files are being ignored to ensure Claude's context is limit to the right details.
+# Catch up on threads with prompt creation (default guild)
+make discord_thread_catchup_with_prompt_use_env
+
+# Catch up on threads with AI summarization (default guild)
+make discord_thread_catchup_with_summary_use_env
+```
+
+### Environment Management
+
+```bash
+# Check if virtual environment is active
+make env_check
+
+# Create Python 3.11 virtual environment
+make env_create
+
+# Source the environment
+source .venv/bin/activate
+```
+
+### Package Management
+
+```bash
+# Install dependencies
+make uv_install
+
+# Update and upgrade all dependencies
+make uv_upgrade
+
+# Export locked dependencies
+make uv_export
+```
+
+### Code Quality
+
+```bash
+# Format code with ruff
+make py_format
+```
+
+## ClaudeSync Integration
+
+This repo is set up to use [ClaudeSync](https://github.com/jahwag/ClaudeSync) to help answer questions about the codebase.
+
+You can view `.claudeignore` to see what files are being ignored to ensure Claude's context is limited to the relevant details.
 
 1. **Install ClaudeSync** - Ensure you have python set up on your machine
 
