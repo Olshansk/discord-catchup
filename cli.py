@@ -10,6 +10,7 @@ import cli_discord_utils as cdu
 class Settings(BaseSettings):
     discord_token: str
     debug_logging: bool = False
+    default_guild_id: str = ""  # Add default guild ID with empty string as fallback
 
     class Config:
         env_file = ".env"
@@ -38,10 +39,16 @@ def cli():
 
 
 @cli.command()
-@click.option("--guild-id", required=True, help="Discord server (guild) ID")
+@click.option("--guild-id", required=False, help="Discord server (guild) ID")
 @click.option("--create-prompt", is_flag=True, help="Create a prompt file for summarization")
 def thread_catchup(guild_id, create_prompt):
     """Interactive tool to catch up on Discord threads."""
+    # Use default guild ID if not provided
+    guild_id = guild_id or settings.default_guild_id
+
+    if not guild_id:
+        click.echo("Error: Guild ID is required. Provide --guild-id or set DEFAULT_GUILD_ID in .env")
+        return
 
     async def run():
         # Fetch guild and channels
