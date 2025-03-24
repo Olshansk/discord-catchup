@@ -20,9 +20,7 @@ settings = Settings()
 
 # Set up logging
 logging_level = logging.DEBUG if settings.debug_logging else logging.WARNING
-logging.basicConfig(
-    level=logging_level, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging_level, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("cli")
 
 # Set up Discord client
@@ -41,9 +39,7 @@ def cli():
 
 @cli.command()
 @click.option("--guild-id", required=True, help="Discord server (guild) ID")
-@click.option(
-    "--create-prompt", is_flag=True, help="Create a prompt file for summarization"
-)
+@click.option("--create-prompt", is_flag=True, help="Create a prompt file for summarization")
 def thread_catchup(guild_id, create_prompt):
     """Interactive tool to catch up on Discord threads."""
 
@@ -55,9 +51,7 @@ def thread_catchup(guild_id, create_prompt):
         categories, uncategorized = cdu.organize_channels_by_category(channels)
 
         # Select category
-        selected_category_name, channel_list = await cdu.select_category(
-            categories, uncategorized
-        )
+        selected_category_name, channel_list = await cdu.select_category(categories, uncategorized)
 
         if not channel_list:
             click.echo("No channels found in this category.")
@@ -69,14 +63,23 @@ def thread_catchup(guild_id, create_prompt):
         if not selected_channel:
             return
 
+        # Fetch threads for the selected channel
+        threads = await cdu.fetch_threads(selected_channel)
+
+        # Select thread or main channel
+        selected_thread = await cdu.select_thread(threads)
+
+        # Use either the selected thread or the main channel
+        target_channel = selected_thread if selected_thread else selected_channel
+
         # Get message limit
         limit = await cdu.get_message_limit()
 
         # Fetch and display messages
         if create_prompt:
-            await cph.fetch_and_create_prompt_file(selected_channel, limit)
+            await cph.fetch_and_create_prompt_file(target_channel, limit)
         else:
-            await cdu.fetch_and_display_messages(selected_channel, limit)
+            await cdu.fetch_and_display_messages(target_channel, limit)
 
     # Use existing event loop instead of creating a new one
     asyncio.get_event_loop().run_until_complete(run())
@@ -84,9 +87,7 @@ def thread_catchup(guild_id, create_prompt):
 
 @cli.command()
 @click.option("--guild-id", required=True, help="Discord server (guild) ID")
-@click.option(
-    "--interactive", is_flag=True, help="Use interactive mode to select channels"
-)
+@click.option("--interactive", is_flag=True, help="Use interactive mode to select channels")
 def list_channels(guild_id, interactive):
     """List all channels in a Discord server."""
 
@@ -95,9 +96,7 @@ def list_channels(guild_id, interactive):
 
         if interactive:
             categories, uncategorized = cdu.organize_channels_by_category(channels)
-            selected_category_name, channel_list = await cdu.select_category(
-                categories, uncategorized
-            )
+            selected_category_name, channel_list = await cdu.select_category(categories, uncategorized)
 
             if not channel_list:
                 click.echo("No channels found in this category.")
@@ -110,12 +109,8 @@ def list_channels(guild_id, interactive):
             text_channels = [c for c in channels if isinstance(c, discord.TextChannel)]
             click.echo(f"\nAll text channels in {guild.name}:")
             for channel in sorted(text_channels, key=lambda c: c.name):
-                category_name = (
-                    channel.category.name if channel.category else "Uncategorized"
-                )
-                click.echo(
-                    f"# {channel.name} (ID: {channel.id}, Category: {category_name})"
-                )
+                category_name = channel.category.name if channel.category else "Uncategorized"
+                click.echo(f"# {channel.name} (ID: {channel.id}, Category: {category_name})")
 
     asyncio.get_event_loop().run_until_complete(run())
 

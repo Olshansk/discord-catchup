@@ -41,5 +41,3 @@ We caught up on the last {message_count} messages in {server}/{channel}/{thread}
 Please fill in each section based on the content of the messages. If a section doesn't apply, keep the heading but add "None identified" as a bullet point.
 
 Here are the messages to summarize:
-
-[MESSAGES WILL BE PASTED HERE]
