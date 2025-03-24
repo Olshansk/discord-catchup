@@ -17,19 +17,19 @@ list:  ## List all make targets
 
 .PHONY: discord_help
 discord_help: env_check ## Show help information for Discord CLI commands
-	@uv run cli.py --help
+	uv run cli.py --help
 
 .PHONY: discord_thread_catchup_with_prompt_grove
 discord_thread_catchup_with_prompt_grove: env_check ## Run the thread catchup with prompt file creation for Grove's guild
-	@uv run cli.py thread-catchup --guild-id 824324475256438814 --create-prompt
+	uv run cli.py thread-catchup --guild-id 824324475256438814 --create-prompt
 
 .PHONY: discord_thread_catchup_with_prompt_use_env
 discord_thread_catchup_with_prompt_use_env: env_check ## Run the thread catchup with prompt file creation for the guild specified in the environment
-	@uv run cli.py thread-catchup --create-prompt
+	uv run cli.py thread-catchup --create-prompt
 
 .PHONY: discord_thread_catchup_with_summary_use_env
 discord_thread_catchup_with_summary_use_env: env_check ## Run the thread catchup with prompt file creation for the guild specified in the environment
-	@uv run cli.py thread-catchup --summarize
+	uv run cli.py thread-catchup --summarize
 
 ##########################
 ### Env Common Targets ###
@@ -59,25 +59,47 @@ env_source:  ## Source the env; must be executed like so: $$(make env_source)
 uv_cache_dir:
 	@mkdir -p .cache/uv
 
-.PHONY: uv_compile
-uv_compile: env_check uv_cache_dir ## Generate requirements.txt from pyproject.toml and requirements.in
-	@echo "Compiling dependencies..."
-	uv compile pyproject.toml -o requirements.txt
-	uv compile --output-file=requirements.txt requirements.in
+.PHONY: uv_sync
+uv_sync: env_check uv_cache_dir ## Sync dependencies from pyproject.toml and requirements.in
+	@echo "Syncing dependencies with uv..."
+	uv pip sync requirements.txt
 
 .PHONY: uv_install
 uv_install: env_check uv_cache_dir ## Install dependencies from requirements.txt
-	uv install --requirements requirements.txt
+	uv pip install -r requirements.txt
+
+.PHONY: uv_lock
+uv_lock: env_check uv_cache_dir ## Generate lock file from requirements
+	@echo "Locking dependencies..."
+	uv pip compile -o requirements.txt requirements.in
 
 .PHONY: uv_upgrade
-uv_upgrade: env_check uv_cache_dir ## Upgrade all installed packages and update requirements.txt
-	uv install --upgrade -r requirements.txt
+uv_upgrade: env_check uv_cache_dir ## Upgrade all installed packages
+	uv pip install --upgrade -r requirements.txt
 	$(MAKE) uv_export
 
 .PHONY: uv_export
 uv_export: env_check uv_cache_dir ## Export locked dependencies to requirements.txt
 	@echo "Exporting dependencies to requirements.txt..."
-	uv export -o requirements.txt
+	uv pip freeze > requirements.txt
+
+.PHONY: uv_add
+uv_add: env_check uv_cache_dir ## Add a package (usage: make uv_add PKG=package_name)
+	@if [ -z "$(PKG)" ]; then \
+		echo "Error: Package name not specified. Use 'make uv_add PKG=package_name'"; \
+		exit 1; \
+	fi
+	uv pip install $(PKG)
+	uv pip freeze > requirements.txt
+
+.PHONY: uv_remove
+uv_remove: env_check uv_cache_dir ## Remove a package (usage: make uv_remove PKG=package_name)
+	@if [ -z "$(PKG)" ]; then \
+		echo "Error: Package name not specified. Use 'make uv_remove PKG=package_name'"; \
+		exit 1; \
+	fi
+	uv pip uninstall -y $(PKG)
+	uv pip freeze > requirements.txt
 
 #############################
 ### Python Common Targets ###
