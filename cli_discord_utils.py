@@ -109,6 +109,7 @@ async def select_category(categories: Dict, uncategorized: List) -> Tuple[str, L
 
 async def select_channel(
     channel_list: List[discord.TextChannel],
+    count_threads: bool = False,
 ) -> discord.TextChannel:
     """Display interactive prompt to select a channel.
 
@@ -125,9 +126,16 @@ async def select_channel(
     # Create channel choices with thread counts
     channel_choices = []
     for channel in channel_list:
-        # Get thread count
-        threads = await fetch_threads(channel)
-        thread_count = len(threads)
+        if count_threads:
+            threads = await fetch_threads(channel)
+            thread_count = len(threads)
+        else:
+            # Try to get count from cache, otherwise show as unknown
+            cached_threads = _load_threads_from_cache(channel.id)
+            if cached_threads:
+                thread_count = len(cached_threads)
+            else:
+                thread_count = "?"
         channel_choices.append(f"# {channel.name} ({thread_count} threads)")
 
     # Map display strings back to channel objects

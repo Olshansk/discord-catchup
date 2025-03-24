@@ -75,6 +75,7 @@ def thread_catchup(guild_id, create_prompt, use_cache, max_age):
 
         # Select channel
         selected_channel = await cdu.select_channel(channel_list)
+        selected_channel = await cdu.select_channel(channel_list, count_threads=use_cache)
 
         if not selected_channel:
             return

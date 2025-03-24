@@ -64,6 +64,7 @@ __pycache__/
 
 .cache
 .ruff_cache
+.cache/
 
 # Environment
 
