@@ -180,118 +180,85 @@ async def fetch_threads(
     channel: discord.TextChannel, use_cache: bool = False, max_age_days: Optional[int] = None
 ) -> List[discord.Thread]:
     """Fetch all threads in a channel."""
-    cache_dir = ".cache"
-    os.makedirs(cache_dir, exist_ok=True)
-    cache_file = os.path.join(cache_dir, f"threads_cache_{channel.id}.json")
-
     threads = []
 
-    # Check if we can use cache
-    if use_cache and os.path.exists(cache_file):
-        try:
-            cache_age = time.time() - os.path.getmtime(cache_file)
-            # Only use cache if it's less than 1 hour old
-            if cache_age < 3600:  # 1 hour in seconds
-                logger.debug(f"Using cached threads for channel {channel.id}...")
-                with open(cache_file, "r") as f:
-                    threads_data = json.load(f)
-                print(threads_data)
-                # Convert thread data back to Thread objects
-                for thread_data in threads_data:
-                    # Create partial Thread object with the essential data
-                    thread = discord.Thread(
-                        state=channel._state,
-                        guild=channel.guild,
-                        data={
-                            "id": int(thread_data["id"]),
-                            "parent_id": int(thread_data["parent_id"]),
-                            "name": thread_data["name"],
-                            "last_message_id": (
-                                int(thread_data["last_message_id"]) if thread_data.get("last_message_id") else None
-                            ),
-                            "thread_metadata": {
-                                "archived": thread_data["archived"],
-                                "archive_timestamp": thread_data["archive_timestamp"],
-                                "auto_archive_duration": thread_data["auto_archive_duration"],
-                                "locked": thread_data.get("locked", False),
-                            },
-                        },
-                    )
-                    # Add last_activity timestamp as an attribute
-                    thread.last_activity = datetime.fromisoformat(thread_data["last_activity"])
-                    threads.append(thread)
+    # If we're using cache, try to load it
+    if use_cache:
+        threads = _load_threads_from_cache(channel.id, max_age_days)
+        if threads:
+            return threads
 
-                logger.debug(f"Loaded {len(threads)} threads from cache")
-
-                # Apply age filter if specified
-                if max_age_days is not None:
-                    cutoff_date = datetime.utcnow() - timedelta(days=max_age_days)
-                    threads = [t for t in threads if t.last_activity >= cutoff_date]
-                    logger.debug(f"{len(threads)} threads after age filter")
-
-                return threads
-        except Exception as e:
-            logger.warning(f"Error loading thread cache: {e}")
-
-    # If we get here, we need to fetch threads
-    logger.debug(f"Fetching threads for channel {channel.id}...")
-
-    # Get active threads
+    # Fetch active threads
     try:
         active_threads = await channel.guild.active_threads()
         for thread in active_threads:
-            print(thread)
-            if thread.parent_id == channel.id:
-                # First set the attribute, then use it
-                # setattr(thread, "last_activity", datetime.utcnow())
+            if thread.parent_id == channel.id and not thread.archived and not thread.locked:
                 threads.append(thread)
     except Exception as e:
         logger.warning(f"Error fetching active threads: {e}")
 
-    # Get archived public threads
+    # Fetch archived threads
     try:
         async for thread in channel.archived_threads(limit=100):
-            # Set last_activity attribute before using it
-            # thread.last_activity = thread.archive_timestamp or datetime.utcnow()
-            threads.append(thread)
+            if not thread.archived and not thread.locked:
+                threads.append(thread)
     except Exception as e:
         logger.warning(f"Error fetching archived threads: {e}")
 
-    # Apply age filter if specified
-    if max_age_days is not None:
-        cutoff_date = datetime.utcnow() - timedelta(days=max_age_days)
-        threads = [t for t in threads if hasattr(t, "last_activity") and t.last_activity >= cutoff_date]
+    # Apply age filter
+    if max_age_days:
+        cutoff_date = datetime.utcnow().replace(tzinfo=None)
+        threads = [
+            t
+            for t in threads
+            if t.archive_timestamp
+            and t.archive_timestamp.replace(tzinfo=None) >= cutoff_date - timedelta(days=max_age_days)
+        ]
 
-    # Save to cache
+    # Save to cache if needed
     if use_cache:
-        try:
-            threads_data = []
-            for thread in threads:
-                # Check if thread has last_activity attribute
-                if not hasattr(thread, "last_activity"):
-                    thread.last_activity = datetime.utcnow()
-
-                # Convert Thread objects to serializable dict
-                thread_data = {
-                    "id": str(thread.id),
-                    "parent_id": str(thread.parent_id),
-                    "name": thread.name,
-                    "last_message_id": str(thread.last_message_id) if thread.last_message_id else None,
-                    "archived": thread.archived,
-                    "archive_timestamp": thread.archive_timestamp.isoformat() if thread.archive_timestamp else None,
-                    "auto_archive_duration": thread.auto_archive_duration,
-                    "locked": getattr(thread, "locked", False),
-                    "last_activity": thread.last_activity.isoformat(),
-                }
-                threads_data.append(thread_data)
-
-            with open(cache_file, "w") as f:
-                json.dump(threads_data, f)
-            logger.debug(f"Saved {len(threads)} threads to cache")
-        except Exception as e:
-            logger.warning(f"Error saving thread cache: {e}")
+        _save_threads_to_cache(channel.id, threads)
 
     return threads
+
+
+def _load_threads_from_cache(channel_id: int, max_age_days: Optional[int] = None) -> List[discord.Thread]:
+    """Load threads from cache."""
+    cache_file = os.path.join(".cache", f"threads_cache_{channel_id}.json")
+
+    if not os.path.exists(cache_file) or time.time() - os.path.getmtime(cache_file) > 3600:
+        return []
+
+    try:
+        with open(cache_file, "r") as f:
+            return json.load(f)
+    except Exception as e:
+        logger.warning(f"Error loading thread cache: {e}")
+        return []
+
+
+def _save_threads_to_cache(channel_id: int, threads: List[discord.Thread]) -> None:
+    """Save threads to cache."""
+    os.makedirs(".cache", exist_ok=True)
+    cache_file = os.path.join(".cache", f"threads_cache_{channel_id}.json")
+
+    try:
+        thread_data = [
+            {
+                "id": str(t.id),
+                "parent_id": str(t.parent_id),
+                "name": t.name,
+                "archived": t.archived,
+                "locked": getattr(t, "locked", False),
+                "archive_timestamp": t.archive_timestamp.isoformat() if t.archive_timestamp else None,
+            }
+            for t in threads
+        ]
+
+        with open(cache_file, "w") as f:
+            json.dump(thread_data, f)
+    except Exception as e:
+        logger.warning(f"Error saving thread cache: {e}")
 
 
 async def select_thread(threads: List[discord.Thread]) -> Optional[discord.Thread]:
