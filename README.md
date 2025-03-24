@@ -19,7 +19,7 @@ A command-line utility for interacting with Discord servers to easily retrieve i
   - [Code Quality](#code-quality)
 - [ClaudeSync Integration](#claudesync-integration)
 
-![Image](https://github.com/user-attachments/assets/a753f0a9-f7b7-4ad7-b599-be0003d9d1d3)
+![output](https://github.com/user-attachments/assets/c6e20da0-de33-45ad-8bd1-943a65fbfa68)
 
 ## Features
 
