@@ -5,12 +5,15 @@ import discord
 from pydantic_settings import BaseSettings
 import cli_prompt_handler as cph
 import cli_discord_utils as cdu
+from typing import Optional
 
 
 class Settings(BaseSettings):
     discord_token: str
     debug_logging: bool = False
-    default_guild_id: str = ""  # Add default guild ID with empty string as fallback
+    default_guild_id: str = ""
+    use_threads_cache: bool = False
+    max_thread_age_days: Optional[int] = None
 
     class Config:
         env_file = ".env"
@@ -41,10 +44,16 @@ def cli():
 @cli.command()
 @click.option("--guild-id", required=False, help="Discord server (guild) ID")
 @click.option("--create-prompt", is_flag=True, help="Create a prompt file for summarization")
-def thread_catchup(guild_id, create_prompt):
+@click.option("--use-cache", is_flag=True, help="Use cached thread data if available")
+@click.option("--max-age", type=int, help="Only show threads updated within this many days")
+def thread_catchup(guild_id, create_prompt, use_cache, max_age):
     """Interactive tool to catch up on Discord threads."""
     # Use default guild ID if not provided
     guild_id = guild_id or settings.default_guild_id
+
+    # Use env settings as defaults if command line args not provided
+    use_cache = use_cache or settings.use_threads_cache
+    max_age = max_age if max_age is not None else settings.max_thread_age_days
 
     if not guild_id:
         click.echo("Error: Guild ID is required. Provide --guild-id or set DEFAULT_GUILD_ID in .env")
@@ -71,7 +80,7 @@ def thread_catchup(guild_id, create_prompt):
             return
 
         # Fetch threads for the selected channel
-        threads = await cdu.fetch_threads(selected_channel)
+        threads = await cdu.fetch_threads(selected_channel, use_cache=use_cache, max_age_days=max_age)
 
         # Select thread or main channel
         selected_thread = await cdu.select_thread(threads)
