@@ -11,25 +11,6 @@ help:  ## Prints all the targets in all the Makefiles
 list:  ## List all make targets
 	@${MAKE} -pRrn : -f $(MAKEFILE_LIST) 2>/dev/null | awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' | egrep -v -e '^[^[:alnum:]]' -e '^$@$$' | sort
 
-########################
-### Discord Commands ###
-########################
-
-.PHONY: discord_help
-discord_help: env_check ## Show help information for Discord CLI commands
-	uv run cli.py --help
-
-.PHONY: discord_thread_catchup_with_prompt_grove
-discord_thread_catchup_with_prompt_grove: env_check ## Run the thread catchup with prompt file creation for Grove's guild
-	uv run cli.py thread-catchup --guild-id 824324475256438814 --create-prompt
-
-.PHONY: discord_thread_catchup_with_prompt_use_env
-discord_thread_catchup_with_prompt_use_env: env_check ## Run the thread catchup with prompt file creation for the guild specified in the environment
-	uv run cli.py thread-catchup --create-prompt
-
-.PHONY: discord_thread_catchup_with_summary_use_env
-discord_thread_catchup_with_summary_use_env: env_check ## Run the thread catchup with prompt file creation for the guild specified in the environment
-	uv run cli.py thread-catchup --summarize
 
 ##########################
 ### Env Common Targets ###
@@ -49,6 +30,27 @@ env_create:  ## Create Python 3.11 virtual environment with uv
 .PHONY: env_source
 env_source:  ## Source the env; must be executed like so: $$(make env_source)
 	@echo 'source .venv/bin/activate'
+
+
+########################
+### Discord Commands ###
+########################
+
+.PHONY: discord_help
+discord_help: env_check ## Show help information for Discord CLI commands
+	uv run cli.py --help
+
+.PHONY: discord_thread_catchup_with_prompt_grove
+discord_thread_catchup_with_prompt_grove: env_check ## Run the thread catchup with prompt file creation for Grove's guild
+	uv run cli.py thread-catchup --guild-id 824324475256438814 --create-prompt
+
+.PHONY: discord_thread_catchup_with_prompt_use_env
+discord_thread_catchup_with_prompt_use_env: env_check ## Run the thread catchup with prompt file creation for the guild specified in the environment
+	uv run cli.py thread-catchup --create-prompt
+
+.PHONY: discord_thread_catchup_with_summary_use_env
+discord_thread_catchup_with_summary_use_env: env_check ## Run the thread catchup with prompt file creation for the guild specified in the environment
+	uv run cli.py thread-catchup --summarize
 
 ##########################
 ### UV Common Targets ###

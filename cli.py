@@ -1,15 +1,32 @@
+# =============================
+# Imports and Dependencies
+# =============================
 import asyncio
 import logging
 import click
 import discord
 from pydantic_settings import BaseSettings
+from typing import Optional
+
 import cli_prompt_handler as cph
 import cli_llm_handler as clh
 import cli_discord_utils as cdu
-from typing import Optional
 
 
+# =============================
+# Settings and Configuration
+# =============================
 class Settings(BaseSettings):
+    """
+    Application settings loaded from environment variables or .env file.
+    
+    - discord_token: Discord bot token (required)
+    - debug_logging: Enable debug logging
+    - default_guild_id: Default Discord server (guild) ID
+    - use_threads_cache: Use cached thread data if available
+    - max_thread_age_days: Only show threads updated within this many days
+    - openrouter_api_key: API key for OpenRouter (optional)
+    """
     discord_token: str
     debug_logging: bool = False
     default_guild_id: str = ""
@@ -21,17 +38,22 @@ class Settings(BaseSettings):
         env_file = ".env"
 
 
-# Load settings
+# =============================
+# Initialization
+# =============================
+
+# Load settings from .env or environment
 settings = Settings()
 
 # Set up logging
 logging_level = logging.DEBUG if settings.debug_logging else logging.WARNING
 logging.basicConfig(
-    level=logging_level, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging_level,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger("cli")
 
-# Set up Discord client
+# Configure Discord client with required intents
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
@@ -39,24 +61,30 @@ intents.guild_messages = True
 client = discord.Client(intents=intents)
 
 
+# =============================
+# CLI Setup
+# =============================
+
 @click.group()
 def cli():
-    """Discord CLI tool for retrieving channel information and messages."""
+    """
+    Discord CLI tool for retrieving channel information and messages.
+    """
     pass
 
 
 @cli.command()
 @click.option("--guild-id", required=False, help="Discord server (guild) ID")
-@click.option(
-    "--create-prompt", is_flag=True, help="Create a prompt file for summarization"
-)
+@click.option("--create-prompt", is_flag=True, help="Create a prompt file for summarization")
 @click.option("--summarize", is_flag=True, help="Use LLM to summarize the conversation")
 @click.option("--use-cache", is_flag=True, help="Use cached thread data if available")
-@click.option(
-    "--max-age", type=int, help="Only show threads updated within this many days"
-)
+@click.option("--max-age", type=int, help="Only show threads updated within this many days")
 def thread_catchup(guild_id, create_prompt, summarize, use_cache, max_age):
-    """Interactive tool to catch up on Discord threads."""
+    """
+    Interactive tool to catch up on Discord threads.
+    - Allows prompt creation and LLM summarization
+    - Supports caching and thread age filtering
+    """
     # Use default guild ID if not provided
     guild_id = guild_id or settings.default_guild_id
 
@@ -81,7 +109,7 @@ def thread_catchup(guild_id, create_prompt, summarize, use_cache, max_age):
         # Organize channels by category
         categories, uncategorized = cdu.organize_channels_by_category(channels)
 
-        # Select category
+        # Select category interactively
         selected_category_name, channel_list = await cdu.select_category(
             categories, uncategorized
         )
@@ -90,7 +118,7 @@ def thread_catchup(guild_id, create_prompt, summarize, use_cache, max_age):
             click.echo("No channels found in this category.")
             return
 
-        # Select channel
+        # Select channel interactively
         selected_channel = await cdu.select_channel(
             channel_list, count_threads=(not use_cache)
         )
@@ -103,16 +131,14 @@ def thread_catchup(guild_id, create_prompt, summarize, use_cache, max_age):
             selected_channel, use_cache=use_cache, max_age_days=max_age
         )
 
-        # Select thread or main channel
+        # Select thread or use main channel
         selected_thread = await cdu.select_thread(threads)
-
-        # Use either the selected thread or the main channel
         target_channel = selected_thread if selected_thread else selected_channel
 
-        # Get message limit
+        # Get message limit from user
         limit = await cdu.get_message_limit()
 
-        # Fetch and display messages
+        # Fetch and display or summarize messages
         if create_prompt:
             prompt_file = await cph.fetch_and_create_prompt_file(target_channel, limit)
 
@@ -132,12 +158,13 @@ def thread_catchup(guild_id, create_prompt, summarize, use_cache, max_age):
 
 @cli.command()
 @click.option("--guild-id", required=True, help="Discord server (guild) ID")
-@click.option(
-    "--interactive", is_flag=True, help="Use interactive mode to select channels"
-)
+@click.option("--interactive", is_flag=True, help="Use interactive mode to select channels")
 def list_channels(guild_id, interactive):
-    """List all channels in a Discord server."""
-
+    """
+    List all channels in a Discord server.
+    - Interactive mode allows category/channel selection
+    - Otherwise, lists all text channels
+    """
     async def run():
         guild, channels = await cdu.fetch_guild_channels(client, guild_id)
 
@@ -168,28 +195,50 @@ def list_channels(guild_id, interactive):
     asyncio.get_event_loop().run_until_complete(run())
 
 
+# =============================
+# Discord Client Events & Lifecycle
+# =============================
+
 @client.event
 async def on_ready():
-    """Event triggered when the bot is ready."""
+    """
+    Event triggered when the bot is ready.
+    - Logs bot login
+    """
     logger.info(f"Logged in as {client.user.name}")
 
 
 async def start_client():
-    """Start the Discord client."""
+    """
+    Start the Discord client.
+    - Logs in with the provided token
+    """
     logger.debug("Starting Discord client...")
     await client.login(settings.discord_token)
     logger.debug("Logged in successfully.")
 
 
 async def close_client():
-    """Close the Discord client."""
+    """
+    Close the Discord client.
+    - Ensures client is properly closed
+    """
     logger.debug("Closing Discord client...")
     await client.close()
     logger.debug("Discord client closed successfully.")
 
 
+# =============================
+# Main Entry Point
+# =============================
+
 def main():
-    """Start the Discord client and CLI."""
+    """
+    Start the Discord client and CLI.
+    - Initializes event loop
+    - Runs CLI commands
+    - Ensures Discord client is closed on exit
+    """
     logger.debug("Starting Discord Event Loop...")
     loop = asyncio.get_event_loop()
     logger.debug("Running Discord client...")
