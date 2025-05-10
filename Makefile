@@ -40,10 +40,6 @@ env_source:  ## Source the env; must be executed like so: $$(make env_source)
 discord_help: env_check ## Show help information for Discord CLI commands
 	uv run cli.py --help
 
-.PHONY: discord_thread_catchup_with_prompt_grove
-discord_thread_catchup_with_prompt_grove: env_check ## Run the thread catchup with prompt file creation for Grove's guild
-	uv run cli.py thread-catchup --guild-id 824324475256438814 --create-prompt
-
 .PHONY: discord_thread_catchup_with_prompt_use_env
 discord_thread_catchup_with_prompt_use_env: env_check ## Run the thread catchup with prompt file creation for the guild specified in the environment
 	uv run cli.py thread-catchup --create-prompt

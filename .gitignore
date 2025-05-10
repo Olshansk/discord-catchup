@@ -4,3 +4,4 @@ prompt_*.md
 summary_prompt_*.md
 .ruff_cache
 .cache/
+.DS_Store

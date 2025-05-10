@@ -1,12 +1,12 @@
 # Discord CLI Tool <!-- omit in toc -->
 
-A command-line utility for interacting with Discord servers to easily retrieve information about channels, threads, and messages.
+A CLI for interacting with Discord to easily catch up on a thread or server without reading the whole thing.
 
 - [Features](#features)
-- [Installation](#installation)
+- [Installation from Source](#installation-from-source)
+- [Usage](#usage)
 - [Getting a Discord Bot Token](#getting-a-discord-bot-token)
 - [Configuration](#configuration)
-- [Usage](#usage)
   - [Available Commands](#available-commands)
 - [Finding Guild and Channel IDs](#finding-guild-and-channel-ids)
 - [Thread Catchup \& Summarization](#thread-catchup--summarization)
@@ -30,13 +30,16 @@ A command-line utility for interacting with Discord servers to easily retrieve i
 - Generate AI-powered summaries of Discord conversations using OpenRouter
 - Caching of thread data for improved performance
 
-## Installation
+## Installation from Source
+
+> [!IMPORTANT]
+> The only way to install it (for now) is from source
 
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/yourusername/discord-cli-tool.git
-   cd discord-cli-tool
+   git clone https://github.com/olshansk/discord-catchup
+   cd discord-catchup
    ```
 
 2. Create a virtual environment and install dependencies:
@@ -46,13 +49,19 @@ A command-line utility for interacting with Discord servers to easily retrieve i
    make env_create
 
    # Activate the virtual environment
-   source .venv/bin/activate
+   $(make env_source)
 
    # Install dependencies
    make uv_install
    ```
 
 3. Create a `.env` file with your configuration:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   And update the values in the `.env` file:
 
    ```bash
    DISCORD_TOKEN=your_discord_bot_token_here
@@ -62,30 +71,6 @@ A command-line utility for interacting with Discord servers to easily retrieve i
    MAX_THREAD_AGE_DAYS=30
    OPENROUTER_API_KEY=your_openrouter_api_key_here
    ```
-
-## Getting a Discord Bot Token
-
-1. Go to the [Discord Developer Portal](https://discord.com/developers/applications)
-2. Click `New Application` and provide a name
-3. Navigate to the `Bot` section
-4. Under the `TOKEN` section, click "Copy" to copy your bot token
-5. Navigate to the `OAuth2` tab, then `URL Generator`
-6. Select the following scopes: `bot`, `applications.commands`
-7. Select bot permissions: `Read Messages/View Channels`, `Read Message History`, `Message Content Intent`
-8. Use the generated URL to invite the bot to your server
-
-## Configuration
-
-The tool can be configured via environment variables in a `.env` file:
-
-| Variable              | Description                                         | Default |
-| --------------------- | --------------------------------------------------- | ------- |
-| `DISCORD_TOKEN`       | Discord bot token (required)                        | -       |
-| `DEFAULT_GUILD_ID`    | Default Discord server ID                           | -       |
-| `DEBUG_LOGGING`       | Enable debug logging                                | `false` |
-| `USE_THREADS_CACHE`   | Enable thread caching                               | `false` |
-| `MAX_THREAD_AGE_DAYS` | Only show threads updated within this many days     | -       |
-| `OPENROUTER_API_KEY`  | API key for OpenRouter (required for summarization) | -       |
 
 ## Usage
 
@@ -121,6 +106,30 @@ make discord_thread_catchup_with_prompt_use_env
 # Thread catchup with AI summarization (using default guild)
 make discord_thread_catchup_with_summary_use_env
 ```
+
+## Getting a Discord Bot Token
+
+1. Go to the [Discord Developer Portal](https://discord.com/developers/applications)
+2. Click `New Application` and provide a name
+3. Navigate to the `Bot` section
+4. Under the `TOKEN` section, click "Copy" to copy your bot token
+5. Navigate to the `OAuth2` tab, then `URL Generator`
+6. Select the following scopes: `bot`, `applications.commands`
+7. Select bot permissions: `Read Messages/View Channels`, `Read Message History`, `Message Content Intent`
+8. Use the generated URL to invite the bot to your server
+
+## Configuration
+
+The tool can be configured via environment variables in a `.env` file:
+
+| Variable              | Description                                         | Default |
+| --------------------- | --------------------------------------------------- | ------- |
+| `DISCORD_TOKEN`       | Discord bot token (required)                        | -       |
+| `DEFAULT_GUILD_ID`    | Default Discord server ID                           | -       |
+| `DEBUG_LOGGING`       | Enable debug logging                                | `false` |
+| `USE_THREADS_CACHE`   | Enable thread caching                               | `false` |
+| `MAX_THREAD_AGE_DAYS` | Only show threads updated within this many days     | -       |
+| `OPENROUTER_API_KEY`  | API key for OpenRouter (required for summarization) | -       |
 
 ### Available Commands
 
@@ -183,9 +192,6 @@ The project includes several helpful Makefile commands for common operations:
 ```bash
 # Show CLI help
 make discord_help
-
-# Catch up on threads with prompt creation (Grove guild)
-make discord_thread_catchup_with_prompt_grove
 
 # Catch up on threads with prompt creation (default guild)
 make discord_thread_catchup_with_prompt_use_env
