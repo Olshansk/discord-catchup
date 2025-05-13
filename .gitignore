@@ -2,6 +2,7 @@ __pycache__
 .env
 prompt_*.md
 summary_prompt_*.md
+raw_messages_*.md
 .ruff_cache
 .cache/
 .DS_Store

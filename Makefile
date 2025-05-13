@@ -36,8 +36,8 @@ env_source:  ## Source the env; must be executed like so: $$(make env_source)
 ### Discord Commands ###
 ########################
 
-.PHONY: discord_help
-discord_help: env_check ## Show help information for Discord CLI commands
+.PHONY: discord_catchup_help
+discord_catchup_help: env_check ## Show help information for Discord CLI commands
 	uv run cli.py --help
 
 .PHONY: discord_thread_catchup_with_prompt_use_env

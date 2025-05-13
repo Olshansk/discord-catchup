@@ -12,6 +12,11 @@ import cli_prompt_handler as cph
 import cli_llm_handler as clh
 import cli_discord_utils as cdu
 
+# Globals for lazy initialization
+settings = None
+logger = None
+client = None
+
 
 # =============================
 # Settings and Configuration
@@ -40,23 +45,36 @@ class Settings(BaseSettings):
 
 
 # =============================
-# Initialization
+# Initialization Helpers
 # =============================
 
-# Load settings from .env or environment
-settings = Settings()
 
-# Set up logging
-logging_level = logging.DEBUG if settings.debug_logging else logging.WARNING
-logging.basicConfig(level=logging_level, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-logger = logging.getLogger("cli")
+def get_settings():
+    global settings
+    if settings is None:
+        settings = Settings()
+    return settings
 
-# Configure Discord client with required intents
-intents = discord.Intents.default()
-intents.message_content = True
-intents.guilds = True
-intents.guild_messages = True
-client = discord.Client(intents=intents)
+
+def get_logger():
+    global logger
+    if logger is None:
+        s = get_settings()
+        logging_level = logging.DEBUG if s.debug_logging else logging.WARNING
+        logging.basicConfig(level=logging_level, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        logger = logging.getLogger("cli")
+    return logger
+
+
+def get_client():
+    global client
+    if client is None:
+        intents = discord.Intents.default()
+        intents.message_content = True
+        intents.guilds = True
+        intents.guild_messages = True
+        client = discord.Client(intents=intents)
+    return client
 
 
 # =============================
@@ -68,6 +86,38 @@ client = discord.Client(intents=intents)
 def cli():
     """
     Discord CLI tool for retrieving channel information and messages.
+
+    Features:
+    - List all channels in a Discord server
+    - Interactively catch up on Discord threads
+    - Create prompt files for LLM summarization
+    - Filter threads by age or use cached data
+
+    Examples:
+
+    # List all channels in a server
+
+        uv run cli.py list-channels --guild-id 1234567890
+
+    # List channels interactively
+
+        uv run cli.py list-channels --interactive
+
+    # Run thread catchup with prompt creation
+
+        uv run cli.py thread-catchup --guild-id 1234567890 --create-prompt
+
+    # Run thread catchup and summarize with LLM
+
+        uv run cli.py thread-catchup --guild-id 1234567890 --summarize
+
+    # Use cache and filter threads by age
+
+        uv run cli.py thread-catchup --use-cache --max-age 7
+
+    # Show help for a command
+
+        uv run cli.py thread-catchup --help
     """
     pass
 
@@ -76,20 +126,48 @@ def cli():
 @click.option("--guild-id", required=False, help="Discord server (guild) ID")
 @click.option("--create-prompt", is_flag=True, help="Create a prompt file for summarization")
 @click.option("--summarize", is_flag=True, help="Use LLM to summarize the conversation")
-@click.option("--use-cache", is_flag=True, help="Use cached thread data if available")
-@click.option("--max-age", type=int, help="Only show threads updated within this many days")
+@click.option("--use-cache", is_flag=True, default=False, help="Use cached thread data if available")
+@click.option("--max-age", type=int, default=30, help="Only show threads updated within this many days")
 def thread_catchup(guild_id, create_prompt, summarize, use_cache, max_age):
     """
     Interactive tool to catch up on Discord threads.
+
+    Features:
     - Allows prompt creation and LLM summarization
     - Supports caching and thread age filtering
+    - Interactive selection of channels and threads
+
+    Examples:
+
+    # Basic interactive catchup
+
+        uv run cli.py thread-catchup --guild-id 1234567890
+
+    # Create a prompt file for summarization
+
+        uv run cli.py thread-catchup --guild-id 1234567890 --create-prompt
+
+    # Create and summarize with LLM
+
+        uv run cli.py thread-catchup --guild-id 1234567890 --summarize
+
+    # Use cached thread data and filter by 7 days
+
+        uv run cli.py thread-catchup --use-cache --max-age 7
+
+    # Show help
+
+        uv run cli.py thread-catchup --help
     """
+    s = get_settings()
+    c = get_client()
+
     # Use default guild ID if not provided
-    guild_id = guild_id or settings.default_guild_id
+    guild_id = guild_id or s.default_guild_id
 
     # Use env settings as defaults if command line args not provided
-    use_cache = use_cache or settings.use_threads_cache
-    max_age = max_age if max_age is not None else settings.max_thread_age_days
+    use_cache = use_cache or s.use_threads_cache
+    max_age = max_age if max_age is not None else s.max_thread_age_days
 
     if not guild_id:
         click.echo("Error: Guild ID is required. Provide --guild-id or set DEFAULT_GUILD_ID in .env")
@@ -101,29 +179,37 @@ def thread_catchup(guild_id, create_prompt, summarize, use_cache, max_age):
 
     async def run():
         # Fetch guild and channels
-        guild, channels = await cdu.fetch_guild_channels(client, guild_id)
+        guild, channels = await cdu.fetch_guild_channels(c, guild_id)
 
         # Organize channels by category
         categories, uncategorized = cdu.organize_channels_by_category(channels)
 
         # Select category interactively
-        selected_category_name, channel_list = await cdu.select_category(categories, uncategorized)
+        _, channel_list = await cdu.select_category(categories, uncategorized)
 
         if not channel_list:
             click.echo("No channels found in this category.")
             return
 
-        # Select channel interactively
-        selected_channel = await cdu.select_channel(channel_list, count_threads=(not use_cache))
+        use_cache = False
 
+        # Select channel interactively
+        selected_channel = await cdu.select_channel(channel_list, use_cache=use_cache)
         if not selected_channel:
             return
 
+        # Ensure selected_channel is a real Discord object
+        selected_channel = await cdu.get_real_channel_object(guild, selected_channel)
+
+        print("OLSH5", selected_channel)
         # Fetch threads for the selected channel
         threads = await cdu.fetch_threads(selected_channel, use_cache=use_cache, max_age_days=max_age)
 
         # Select thread or use main channel
         selected_thread = await cdu.select_thread(threads)
+        # Ensure selected_thread is a real Discord object if selected
+        if selected_thread:
+            selected_thread = await cdu.get_real_thread_object(guild, selected_thread)
         target_channel = selected_thread if selected_thread else selected_channel
 
         # Get message limit from user
@@ -143,22 +229,39 @@ def thread_catchup(guild_id, create_prompt, summarize, use_cache, max_age):
         else:
             await cdu.fetch_and_display_messages(target_channel, limit)
 
-    # Use existing event loop instead of creating a new one
     asyncio.get_event_loop().run_until_complete(run())
 
 
 @cli.command()
-@click.option("--guild-id", required=True, help="Discord server (guild) ID")
+@click.option("--guild-id", required=False, help="Discord server (guild) ID")
 @click.option("--interactive", is_flag=True, help="Use interactive mode to select channels")
 def list_channels(guild_id, interactive):
     """
     List all channels in a Discord server.
+
+    Features:
     - Interactive mode allows category/channel selection
     - Otherwise, lists all text channels
+
+    Examples:
+
+    # List all channels in a server
+    uv run cli.py list-channels --guild-id 1234567890
+
+    # List channels interactively
+    uv run cli.py list-channels --interactive
+
+    # Show help
+    uv run cli.py list-channels --help
     """
+    s = get_settings()
+    c = get_client()
+
+    # Use default guild ID if not provided
+    guild_id = guild_id or s.default_guild_id
 
     async def run():
-        guild, channels = await cdu.fetch_guild_channels(client, guild_id)
+        guild, channels = await cdu.fetch_guild_channels(c, guild_id)
 
         if interactive:
             categories, uncategorized = cdu.organize_channels_by_category(channels)
@@ -186,33 +289,32 @@ def list_channels(guild_id, interactive):
 # =============================
 
 
-@client.event
-async def on_ready():
-    """
-    Event triggered when the bot is ready.
-    - Logs bot login
-    """
-    logger.info(f"Logged in as {client.user.name}")
+def register_client_events():
+    c = get_client()
+    l = get_logger()
+
+    @c.event
+    async def on_ready():
+        """
+        Event triggered when the bot is ready.
+        - Logs bot login
+        """
+        l.info(f"Logged in as {c.user.name}")
 
 
-async def start_client():
-    """
-    Start the Discord client.
-    - Logs in with the provided token
-    """
-    logger.debug("Starting Discord client...")
-    await client.login(settings.discord_token)
-    logger.debug("Logged in successfully.")
+def start_client():
+    l = get_logger()
+    s = get_settings()
+    c = get_client()
+    l.debug("Starting Discord client...")
+    return c.login(s.discord_token)
 
 
-async def close_client():
-    """
-    Close the Discord client.
-    - Ensures client is properly closed
-    """
-    logger.debug("Closing Discord client...")
-    await client.close()
-    logger.debug("Discord client closed successfully.")
+def close_client():
+    l = get_logger()
+    c = get_client()
+    l.debug("Closing Discord client...")
+    return c.close()
 
 
 # =============================
@@ -227,9 +329,12 @@ def main():
     - Runs CLI commands
     - Ensures Discord client is closed on exit
     """
-    logger.debug("Starting Discord Event Loop...")
+    # Register events only before running client
+    register_client_events()
+    l = get_logger()
+    l.debug("Starting Discord Event Loop...")
     loop = asyncio.get_event_loop()
-    logger.debug("Running Discord client...")
+    l.debug("Running Discord client...")
     loop.run_until_complete(start_client())
 
     try:

@@ -74,8 +74,14 @@ async def fetch_and_create_prompt_file(channel: discord.TextChannel, limit: int)
     with open(filename, "w", encoding="utf-8") as f:
         f.write(prompt_content)
 
+    # Write raw messages to file
+    raw_messages_filename = filename.replace("prompt", "raw_messages")
+    with open(raw_messages_filename, "w", encoding="utf-8") as f:
+        f.write("\n".join(message_texts))
+
     # Output to user
     click.echo(f"\n✅   Created prompt file: {filename}")
     click.echo(f"✅   Last {limit} messages from {channel.name} saved.")
+    click.echo(f"✅   Raw messages saved to: {raw_messages_filename}")
 
     return filename

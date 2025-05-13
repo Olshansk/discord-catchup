@@ -75,8 +75,7 @@ async def select_category(categories: Dict, uncategorized: List) -> Tuple[str, L
     """
     # Create category choices
     category_choices = [
-        f"{cat_data['name']} ({len(cat_data['channels'])} channels)"
-        for cat_id, cat_data in categories.items()
+        f"{cat_data['name']} ({len(cat_data['channels'])} channels)" for cat_id, cat_data in categories.items()
     ]
 
     if uncategorized:
@@ -110,12 +109,13 @@ async def select_category(categories: Dict, uncategorized: List) -> Tuple[str, L
 
 async def select_channel(
     channel_list: List[discord.TextChannel],
-    count_threads: bool = False,
+    use_cache: bool = False,
 ) -> discord.TextChannel:
     """Display interactive prompt to select a channel.
 
     Args:
         channel_list: List of channel objects
+        use_cache: Whether to use cached thread counts
 
     Returns:
         Selected channel object
@@ -127,22 +127,22 @@ async def select_channel(
     # Create channel choices with thread counts
     channel_choices = []
     for channel in channel_list:
-        if count_threads:
-            threads = await fetch_threads(channel)
-            thread_count = len(threads)
-        else:
+        if use_cache:
             # Try to get count from cache, otherwise show as unknown
             cached_threads = _load_threads_from_cache(channel.id)
             if cached_threads:
                 thread_count = len(cached_threads)
             else:
                 thread_count = "?"
+            print("OLSH2", thread_count)
+        else:
+            threads = await fetch_threads(channel, use_cache=use_cache)
+            thread_count = len(threads)
+            print("OLSH1", channel, thread_count)
         channel_choices.append(f"# {channel.name} ({thread_count} threads)")
 
     # Map display strings back to channel objects
-    channel_map = {
-        channel_choices[i]: channel for i, channel in enumerate(channel_list)
-    }
+    channel_map = {channel_choices[i]: channel for i, channel in enumerate(channel_list)}
 
     # Use fuzzy search for channel selection
     selected_channel_display = await inquirer.fuzzy(
@@ -192,12 +192,17 @@ async def fetch_threads(
     use_cache: bool = False,
     max_age_days: Optional[int] = None,
 ) -> List[discord.Thread]:
-    """Fetch all threads in a channel."""
+    """
+    Fetch all threads in a channel.
+
+    - Includes active, archived public, and archived private threads
+    - Deduplicates by thread ID
+    """
     threads = []
 
     # If we're using cache, try to load it
     if use_cache:
-        threads = _load_threads_from_cache(channel.id, max_age_days)
+        threads = _load_threads_from_cache(channel.id)
         if threads:
             return threads
 
@@ -205,33 +210,40 @@ async def fetch_threads(
     try:
         active_threads = await channel.guild.active_threads()
         for thread in active_threads:
-            if (
-                thread.parent_id == channel.id
-                and not thread.archived
-                and not thread.locked
-            ):
+            if thread.parent_id == channel.id:
                 threads.append(thread)
     except Exception as e:
         logger.warning(f"Error fetching active threads: {e}")
 
-    # Fetch archived threads
+    # Fetch archived public threads
     try:
         async for thread in channel.archived_threads(limit=100):
-            if not thread.archived and not thread.locked:
-                threads.append(thread)
+            threads.append(thread)
     except Exception as e:
         logger.warning(f"Error fetching archived threads: {e}")
 
-    # Apply age filter
-    if max_age_days:
-        cutoff_date = datetime.utcnow().replace(tzinfo=None)
-        threads = [
-            t
-            for t in threads
-            if t.archive_timestamp
-            and t.archive_timestamp.replace(tzinfo=None)
-            >= cutoff_date - timedelta(days=max_age_days)
-        ]
+    # Fetch archived private threads (requires MANAGE_THREADS permission)
+    try:
+        async for thread in channel.archived_threads(private=True, limit=100):
+            threads.append(thread)
+    except Exception as e:
+        logger.warning(f"Error fetching archived private threads: {e}")
+
+    # Deduplicate threads by ID
+    unique_threads = {}
+    for t in threads:
+        unique_threads[str(t.id)] = t
+    threads = list(unique_threads.values())
+
+    # Apply age filter if needed
+    # if max_age_days:
+    #     cutoff_date = datetime.utcnow().replace(tzinfo=None)
+    #     threads = [
+    #         t
+    #         for t in threads
+    #         if getattr(t, "archive_timestamp", None)
+    #         and t.archive_timestamp.replace(tzinfo=None) >= cutoff_date - timedelta(days=max_age_days)
+    #     ]
 
     # Save to cache if needed
     if use_cache:
@@ -240,21 +252,43 @@ async def fetch_threads(
     return threads
 
 
+from types import SimpleNamespace
+
+
 def _load_threads_from_cache(
-    channel_id: int, max_age_days: Optional[int] = None
-) -> List[discord.Thread]:
-    """Load threads from cache."""
+    channel_id: int,
+) -> List[Any]:
+    """Load threads from cache. Returns a list of objects with thread-like attributes."""
     cache_file = os.path.join(".cache", f"threads_cache_{channel_id}.json")
 
-    if (
-        not os.path.exists(cache_file)
-        or time.time() - os.path.getmtime(cache_file) > 3600
-    ):
+    if not os.path.exists(cache_file) or time.time() - os.path.getmtime(cache_file) > 3600:
         return []
 
     try:
         with open(cache_file, "r") as f:
-            return json.load(f)
+            thread_dicts = json.load(f)
+            # Convert dicts to SimpleNamespace objects for attribute access
+            threads = []
+            for t in thread_dicts:
+                # Parse archive_timestamp back to datetime if present
+                archive_timestamp = t.get("archive_timestamp")
+                if archive_timestamp:
+                    try:
+                        from datetime import datetime
+
+                        archive_timestamp = datetime.fromisoformat(archive_timestamp)
+                    except Exception:
+                        archive_timestamp = None
+                thread_obj = SimpleNamespace(
+                    id=t.get("id"),
+                    parent_id=t.get("parent_id"),
+                    name=t.get("name"),
+                    archived=t.get("archived", False),
+                    locked=t.get("locked", False),
+                    archive_timestamp=archive_timestamp,
+                )
+                threads.append(thread_obj)
+            return threads
     except Exception as e:
         logger.warning(f"Error loading thread cache: {e}")
         return []
@@ -273,9 +307,7 @@ def _save_threads_to_cache(channel_id: int, threads: List[discord.Thread]) -> No
                 "name": t.name,
                 "archived": t.archived,
                 "locked": getattr(t, "locked", False),
-                "archive_timestamp": t.archive_timestamp.isoformat()
-                if t.archive_timestamp
-                else None,
+                "archive_timestamp": t.archive_timestamp.isoformat() if t.archive_timestamp else None,
             }
             for t in threads
         ]
@@ -284,6 +316,43 @@ def _save_threads_to_cache(channel_id: int, threads: List[discord.Thread]) -> No
             json.dump(thread_data, f)
     except Exception as e:
         logger.warning(f"Error saving thread cache: {e}")
+
+
+async def get_real_channel_object(guild, maybe_cached_channel):
+    """
+    Given a guild and a selected channel (possibly cached), return the real Discord channel object.
+    """
+    import discord
+
+    if isinstance(maybe_cached_channel, discord.TextChannel):
+        return maybe_cached_channel
+    # If it's a cached object, fetch by ID
+    real_channel = guild.get_channel(int(maybe_cached_channel.id))
+    if real_channel is None:
+        # fallback: fetch from API
+        real_channel = await guild.fetch_channel(int(maybe_cached_channel.id))
+    return real_channel
+
+
+async def get_real_thread_object(guild, maybe_cached_thread):
+    """
+    Given a guild and a selected thread (possibly cached), return the real Discord thread object.
+    """
+    import discord
+
+    if maybe_cached_thread is None:
+        return None
+    if isinstance(maybe_cached_thread, discord.Thread):
+        return maybe_cached_thread
+    # Try to find thread by ID
+    for thread in guild.threads:
+        if str(thread.id) == str(maybe_cached_thread.id):
+            return thread
+    # fallback: fetch from API (if available)
+    try:
+        return await guild.fetch_channel(int(maybe_cached_thread.id))
+    except Exception:
+        return None
 
 
 async def select_thread(threads: List[discord.Thread]) -> Optional[discord.Thread]:
@@ -299,10 +368,9 @@ async def select_thread(threads: List[discord.Thread]) -> Optional[discord.Threa
         click.echo("🤔   No threads found in this channel.")
         return None
 
+    print("OLSH3", len(threads))
     # Add option for main channel (no thread)
-    thread_choices = ["No thread (main channel)"] + [
-        f"🧵 {thread.name}" for thread in threads
-    ]
+    thread_choices = ["No thread (main channel)"] + [f"🧵 {thread.name}" for thread in threads]
 
     # Map display strings back to thread objects with None for main channel
     thread_map = {thread_choices[0]: None}
